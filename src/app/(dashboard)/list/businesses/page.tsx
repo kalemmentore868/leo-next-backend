@@ -1,32 +1,79 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { db, storage } from '@/firebase';
+import {
+  collection,
+  getDocs,
+  updateDoc,
+  doc,
+} from 'firebase/firestore';
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from 'firebase/storage';
 
 interface Business {
-  id: number;
+  id: string;
   name: string;
-  email: string;
+  contact_email: string;
   category: string;
-  profileImage: string;
+  display_image_url: string;
   approved: boolean;
 }
 
-const businesses: Business[] = [
-  { id: 1, name: 'Tech Solutions', email: 'contact@techsolutions.com', category: 'IT Services', profileImage: 'https://randomuser.me/api/portraits/men/1.jpg', approved: true },
-  { id: 2, name: 'Green Grocers', email: 'info@greengrocers.com', category: 'Grocery', profileImage: 'https://randomuser.me/api/portraits/women/2.jpg', approved: false },
-  { id: 3, name: 'Auto Fix', email: 'support@autofix.com', category: 'Automotive', profileImage: 'https://randomuser.me/api/portraits/men/3.jpg', approved: true },
-  { id: 4, name: 'Health First', email: 'hello@healthfirst.com', category: 'Healthcare', profileImage: 'https://randomuser.me/api/portraits/women/4.jpg', approved: false },
-  // Add more businesses as needed
-];
-
 const Page = () => {
+  const [businesses, setBusinesses] = useState<Business[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const businessesPerPage = 10;
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const businessesCollection = collection(db, 'Businesses');
+        const businessesSnapshot = await getDocs(businessesCollection);
+        const businessesData = await Promise.all(
+          businessesSnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            const imageUrl = await downloadAndUploadImage(data.display_image_url, doc.id);
+            return {
+              id: doc.id,
+              name: data.name,
+              contact_email: data.contact_email,
+              category: data.category,
+              display_image_url: imageUrl,
+              approved: data.approved,
+            };
+          })
+        );
+        setBusinesses(businessesData);
+      } catch (error) {
+        console.error('Error fetching businesses: ', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const downloadAndUploadImage = async (url: string, id: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `businesses/${id}`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error downloading and uploading image: ', error);
+      return url;
+    }
+  };
+
   const filteredBusinesses = businesses.filter(business =>
     business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    business.email.toLowerCase().includes(searchTerm.toLowerCase())
+    business.contact_email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const indexOfLastBusiness = currentPage * businessesPerPage;
@@ -69,10 +116,10 @@ const Page = () => {
               <tr key={business.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
                 <td className="py-2 px-4 text-left">{business.id}</td>
                 <td className="py-2 px-4 text-left">
-                  <Image src={business.profileImage} alt={business.name} width={40} height={40} className="rounded-full" />
+                  <Image src={business.display_image_url} alt={business.name} width={40} height={40} className="rounded-md" />
                 </td>
                 <td className="py-2 px-4 text-left">{business.name}</td>
-                <td className="py-2 px-4 text-left">{business.email}</td>
+                <td className="py-2 px-4 text-left">{business.contact_email}</td>
                 <td className="py-2 px-4 text-left">{business.category}</td>
                 <td className="py-2 px-4 text-left">
                   <input type="checkbox" checked={business.approved} readOnly />

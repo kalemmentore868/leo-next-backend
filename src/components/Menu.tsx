@@ -1,4 +1,3 @@
-import { role } from "@/lib/data";
 import Link from "next/link";
 import { FaHome, FaUsers, FaStar, FaBullhorn, FaSignOutAlt } from "react-icons/fa"; // Import icons
 import { IoBag } from "react-icons/io5";
@@ -13,7 +12,7 @@ const menuItems = [
       {
         icon: <FaHome />,
         label: "Home",
-        href: "/",
+        href: "/admin",
         visible: ["admin"],
       },
       {
@@ -82,7 +81,6 @@ const Menu = () => {
             {i.title}
           </span>
           {i.items.map((item) => {
-            if (item.visible.includes(role)) {
               return (
                 <Link
                   href={item.href}
@@ -93,7 +91,7 @@ const Menu = () => {
                   <span className="hidden lg:block">{item.label}</span>
                 </Link>
               );
-            }
+            
           })}
         </div>
       ))}
