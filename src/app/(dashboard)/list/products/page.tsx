@@ -1,6 +1,13 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { db } from '@/firebase';
+import {
+  collection,
+  getDocs,
+  DocumentData,
+  QuerySnapshot,
+} from 'firebase/firestore';
 
 interface Product {
   id: string;
@@ -11,18 +18,53 @@ interface Product {
   approved: boolean;
 }
 
-const products: Product[] = [
-  { id: '1', name: 'Laptop', description: 'High performance laptop', display_image_url: 'https://loremflickr.com/150/150/laptop', price_amount: 999.99, approved: true },
-  { id: '2', name: 'Smartphone', description: 'Latest model smartphone', display_image_url: 'https://loremflickr.com/150/150/smartphone', price_amount: 799.99, approved: false },
-  { id: '3', name: 'Headphones', description: 'Noise-cancelling headphones', display_image_url: 'https://loremflickr.com/150/150/headphones', price_amount: 199.99, approved: true },
-  { id: '4', name: 'Coffee Maker', description: 'Automatic coffee maker', display_image_url: 'https://loremflickr.com/150/150/coffeemaker', price_amount: 49.99, approved: false },
-  // Add more products as needed
-];
+interface PriceData {
+  item_id: string;
+  price_amount: number;
+}
 
 const Page = () => {
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 10;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const productsCollection = collection(db, 'Products');
+        const productsSnapshot: QuerySnapshot<DocumentData> = await getDocs(productsCollection);
+        const productsData = await Promise.all(
+          productsSnapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            const priceData = await fetchPriceData(doc.id);
+            return {
+              id: doc.id,
+              name: data.name,
+              description: data.description,
+              display_image_url: data.display_image_url,
+              price_amount: priceData.price_amount,
+              approved: data.approved,
+            } as Product;
+          })
+        );
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error fetching products: ', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const fetchPriceData = async (productId: string): Promise<PriceData> => {
+    const priceCollection = collection(db, 'Prices');
+    const priceSnapshot = await getDocs(priceCollection);
+    const priceData = priceSnapshot.docs
+      .map(doc => doc.data() as PriceData)
+      .find(price => price.item_id === productId);
+    return priceData || { item_id: productId, price_amount: 0 };
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -34,6 +76,13 @@ const Page = () => {
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length > maxLength) {
+      return text.slice(0, maxLength) + '...';
+    }
+    return text;
+  };
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
@@ -55,7 +104,6 @@ const Page = () => {
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
             <tr className="bg-blue-500 text-white">
-              <th className="py-2 px-4 text-left">ID</th>
               <th className="py-2 px-4 text-left">Approved</th>
               <th className="py-2 px-4 text-left">Image</th>
               <th className="py-2 px-4 text-left">Name</th>
@@ -66,7 +114,6 @@ const Page = () => {
           <tbody>
             {currentProducts.map((product, index) => (
               <tr key={product.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4 text-left">{product.id}</td>
                 <td className="py-2 px-4 text-left">
                   <input type="checkbox" checked={product.approved} readOnly />
                 </td>
@@ -74,7 +121,7 @@ const Page = () => {
                   <Image src={product.display_image_url} alt={product.name} width={50} height={50} className="rounded-md" />
                 </td>
                 <td className="py-2 px-4 text-left">{product.name}</td>
-                <td className="py-2 px-4 text-left">{product.description}</td>
+                <td className="py-2 px-4 text-left">{truncateText(product.description, 50)}</td>
                 <td className="py-2 px-4 text-left">${product.price_amount.toFixed(2)}</td>
               </tr>
             ))}

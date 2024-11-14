@@ -1,18 +1,13 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { db, storage } from '@/firebase';
+import { db } from '@/firebase';
 import {
   collection,
   getDocs,
-  updateDoc,
-  doc,
+  DocumentData,
+  QuerySnapshot,
 } from 'firebase/firestore';
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-} from 'firebase/storage';
 
 interface Business {
   id: string;
@@ -33,21 +28,18 @@ const Page = () => {
     const fetchData = async () => {
       try {
         const businessesCollection = collection(db, 'Businesses');
-        const businessesSnapshot = await getDocs(businessesCollection);
-        const businessesData = await Promise.all(
-          businessesSnapshot.docs.map(async (doc) => {
-            const data = doc.data();
-            const imageUrl = await downloadAndUploadImage(data.display_image_url, doc.id);
-            return {
-              id: doc.id,
-              name: data.name,
-              contact_email: data.contact_email,
-              category: data.category,
-              display_image_url: imageUrl,
-              approved: data.approved,
-            };
-          })
-        );
+        const businessesSnapshot: QuerySnapshot<DocumentData> = await getDocs(businessesCollection);
+        const businessesData = businessesSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            contact_email: data.contact_email,
+            category: data.category,
+            display_image_url: data.display_image_url,
+            approved: data.approved,
+          } as Business;
+        });
         setBusinesses(businessesData);
       } catch (error) {
         console.error('Error fetching businesses: ', error);
@@ -56,20 +48,6 @@ const Page = () => {
 
     fetchData();
   }, []);
-
-  const downloadAndUploadImage = async (url: string, id: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const storageRef = ref(storage, `businesses/${id}`);
-      await uploadBytes(storageRef, blob);
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
-    } catch (error) {
-      console.error('Error downloading and uploading image: ', error);
-      return url;
-    }
-  };
 
   const filteredBusinesses = businesses.filter(business =>
     business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -103,27 +81,35 @@ const Page = () => {
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
             <tr className="bg-blue-500 text-white">
+              <th className="py-2 px-4 text-left">Approved</th>
               <th className="py-2 px-4 text-left">ID</th>
               <th className="py-2 px-4 text-left">Profile</th>
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Email</th>
               <th className="py-2 px-4 text-left">Category</th>
-              <th className="py-2 px-4 text-left">Approved</th>
             </tr>
           </thead>
           <tbody>
             {currentBusinesses.map((business, index) => (
               <tr key={business.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4 text-left">{business.id}</td>
-                <td className="py-2 px-4 text-left">
-                  <Image src={business.display_image_url} alt={business.name} width={40} height={40} className="rounded-md" />
-                </td>
-                <td className="py-2 px-4 text-left">{business.name}</td>
-                <td className="py-2 px-4 text-left">{business.contact_email}</td>
-                <td className="py-2 px-4 text-left">{business.category}</td>
                 <td className="py-2 px-4 text-left">
                   <input type="checkbox" checked={business.approved} readOnly />
                 </td>
+                <td className="py-2 px-4 text-left">{business.id}</td>
+                <td className="py-2 px-4 text-left">
+                  <div className="w-12 h-12 relative">
+                    <Image 
+                      src={business.display_image_url || '/avatar.png'} 
+                      alt={business.name} 
+                      layout="fill" 
+                      objectFit="cover" 
+                      className="rounded-md" 
+                    />
+                  </div>
+                </td>
+                <td className="py-2 px-4 text-left">{business.name || 'Nil'}</td>
+                <td className="py-2 px-4 text-left">{business.contact_email || 'Nil'}</td>
+                <td className="py-2 px-4 text-left">{business.category || 'Nil'}</td>
               </tr>
             ))}
           </tbody>

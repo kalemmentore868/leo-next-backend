@@ -1,34 +1,64 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaStar } from 'react-icons/fa';
-import Image from 'next/image';
+import { db } from '@/firebase';
+import {
+  collection,
+  getDocs,
+  DocumentData,
+  QuerySnapshot,
+} from 'firebase/firestore';
 
 interface Review {
-  id: number;
-  businessName: string;
-  userName: string;
-  rating: number;
+  id: string;
+  business_id: string;
+  user_id: string;
   comment: string;
-  profileImage: string;
+  rating: number;
   approved: boolean;
+  created_at: string;
 }
 
-const reviews: Review[] = [
-  { id: 1, businessName: 'Tech Solutions', userName: 'John Doe', rating: 5, comment: 'Excellent service!', profileImage: 'https://randomuser.me/api/portraits/men/1.jpg', approved: true },
-  { id: 2, businessName: 'Green Grocers', userName: 'Jane Smith', rating: 4, comment: 'Great quality products.', profileImage: 'https://randomuser.me/api/portraits/women/2.jpg', approved: false },
-  { id: 3, businessName: 'Auto Fix', userName: 'Alice Johnson', rating: 3, comment: 'Average experience.', profileImage: 'https://randomuser.me/api/portraits/women/3.jpg', approved: true },
-  { id: 4, businessName: 'Health First', userName: 'Bob Brown', rating: 2, comment: 'Not satisfied with the service.', profileImage: 'https://randomuser.me/api/portraits/men/4.jpg', approved: false },
-  // Add more reviews as needed
-];
-
 const Page = () => {
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const reviewsPerPage = 10;
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const reviewsCollection = collection(db, 'Reviews');
+        const reviewsSnapshot: QuerySnapshot<DocumentData> = await getDocs(reviewsCollection);
+        const reviewsData = reviewsSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            business_id: data.business_id,
+            user_id: data.user_id,
+            comment: data.comment,
+            rating: data.rating,
+            approved: data.approved,
+            created_at: data.created_at,
+          } as Review;
+        });
+        setReviews(reviewsData);
+      } catch (error) {
+        console.error('Error fetching reviews: ', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length > maxLength) {
+      return text.slice(0, maxLength) + '...';
+    }
+    return text;
+  };
+
   const filteredReviews = reviews.filter(review =>
-    review.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    review.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     review.comment.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -58,32 +88,31 @@ const Page = () => {
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
             <tr className="bg-blue-500 text-white">
+            <th className="py-2 px-4 text-left">Approved</th>
               <th className="py-2 px-4 text-left">ID</th>
-              <th className="py-2 px-4 text-left">Approved</th>
-              <th className="py-2 px-4 text-left">Business Name</th>
-              <th className="py-2 px-4 text-left">User</th>
+              <th className="py-2 px-4 text-left">Business ID</th>
+              <th className="py-2 px-4 text-left">User ID</th>
               <th className="py-2 px-4 text-left">Comment</th>
               <th className="py-2 px-4 text-left">Rating</th>
+              <th className="py-2 px-4 text-left">Created At</th>
             </tr>
           </thead>
           <tbody>
             {currentReviews.map((review, index) => (
               <tr key={review.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4">{review.id}</td>
-                <td className="py-2 px-4">
-                  <input type="checkbox" checked={review.approved}  />
+                 <td className="py-2 px-4">
+                  <input type="checkbox" checked={review.approved} readOnly />
                 </td>
-                <td className="py-2 px-4">{review.businessName}</td>
-                <td className="py-2 px-4 flex items-center gap-2">
-                  <Image src={review.profileImage} alt={review.userName} width={24} height={24} className="rounded-full" />
-                  <span>{review.userName}</span>
-                </td>
-                <td className="py-2 px-4">{review.comment}</td>
+                <td className="py-2 px-4">{truncateText(review.id, 5)}</td>
+                <td className="py-2 px-4">{truncateText(review.business_id, 5)}</td>
+                <td className="py-2 px-4">{truncateText(review.user_id, 5)}</td>
+                <td className="py-2 px-4 text-sm">{truncateText(review.comment, 50)}</td>
                 <td className="py-2 px-4 flex items-center gap-1">
                   {Array.from({ length: review.rating }, (_, index) => (
                     <FaStar key={index} className="text-yellow-500" />
                   ))}
                 </td>
+                <td className="py-2 px-4">{new Date(review.created_at).toLocaleDateString()}</td>
               </tr>
             ))}
           </tbody>

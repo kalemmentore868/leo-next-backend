@@ -1,75 +1,72 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { db } from '@/firebase';
+import {
+  collection,
+  getDocs,
+} from 'firebase/firestore';
 
 interface User {
-  id: number;
-  name: string;
+  id: string;
+  first_name: string;
+  last_name: string;
+  username: string;
+  isbusiness: boolean;
   email: string;
-  role: string;
-  profileImage: string;
+  role: {
+    business: boolean;
+    customer: boolean;
+    admin: boolean;
+  };
+  display_picture_url: string;
 }
 
-const users: User[] = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/1.jpg' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/2.jpg' },
-  { id: 3, name: 'Alice Johnson', email: 'alice@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/3.jpg' },
-  { id: 4, name: 'Bob Brown', email: 'bob@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/4.jpg' },
-  { id: 5, name: 'Charlie Davis', email: 'charlie@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/5.jpg' },
-  { id: 6, name: 'Diana Evans', email: 'diana@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/6.jpg' },
-  { id: 7, name: 'Ethan Foster', email: 'ethan@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/7.jpg' },
-  { id: 8, name: 'Fiona Green', email: 'fiona@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/8.jpg' },
-  { id: 9, name: 'George Harris', email: 'george@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/9.jpg' },
-  { id: 10, name: 'Hannah Irving', email: 'hannah@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/10.jpg' },
-  { id: 11, name: 'Ian Johnson', email: 'ian@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/11.jpg' },
-  { id: 12, name: 'Julia King', email: 'julia@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/12.jpg' },
-  { id: 13, name: 'Kevin Lee', email: 'kevin@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/13.jpg' },
-  { id: 14, name: 'Laura Miller', email: 'laura@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/14.jpg' },
-  { id: 15, name: 'Michael Nelson', email: 'michael@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/15.jpg' },
-  { id: 16, name: 'Nina Owens', email: 'nina@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/16.jpg' },
-  { id: 17, name: 'Oscar Perez', email: 'oscar@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/17.jpg' },
-  { id: 18, name: 'Paula Quinn', email: 'paula@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/18.jpg' },
-  { id: 19, name: 'Quincy Roberts', email: 'quincy@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/19.jpg' },
-  { id: 20, name: 'Rachel Scott', email: 'rachel@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/20.jpg' },
-  { id: 21, name: 'Steve Turner', email: 'steve@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/21.jpg' },
-  { id: 22, name: 'Tina Underwood', email: 'tina@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/22.jpg' },
-  { id: 23, name: 'Ulysses Vance', email: 'ulysses@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/23.jpg' },
-  { id: 24, name: 'Victoria White', email: 'victoria@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/24.jpg' },
-  { id: 25, name: 'William Xander', email: 'william@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/25.jpg' },
-  { id: 26, name: 'Xena Young', email: 'xena@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/26.jpg' },
-  { id: 27, name: 'Yvonne Zane', email: 'yvonne@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/27.jpg' },
-  { id: 28, name: 'Zachary Adams', email: 'zachary@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/28.jpg' },
-  { id: 29, name: 'Amy Brown', email: 'amy@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/29.jpg' },
-  { id: 30, name: 'Brian Clark', email: 'brian@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/30.jpg' },
-  { id: 31, name: 'Catherine Davis', email: 'catherine@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/31.jpg' },
-  { id: 32, name: 'David Evans', email: 'david@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/32.jpg' },
-  { id: 33, name: 'Ella Foster', email: 'ella@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/33.jpg' },
-  { id: 34, name: 'Frank Green', email: 'frank@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/34.jpg' },
-  { id: 35, name: 'Grace Harris', email: 'grace@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/35.jpg' },
-  { id: 36, name: 'Henry Irving', email: 'henry@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/36.jpg' },
-  { id: 37, name: 'Isla Johnson', email: 'isla@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/37.jpg' },
-  { id: 38, name: 'Jack King', email: 'jack@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/38.jpg' },
-  { id: 39, name: 'Kara Lee', email: 'kara@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/39.jpg' },
-  { id: 40, name: 'Liam Miller', email: 'liam@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/40.jpg' },
-  { id: 41, name: 'Mia Nelson', email: 'mia@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/41.jpg' },
-  { id: 42, name: 'Noah Owens', email: 'noah@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/42.jpg' },
-  { id: 43, name: 'Olivia Perez', email: 'olivia@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/43.jpg' },
-  { id: 44, name: 'Paul Quinn', email: 'paul@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/44.jpg' },
-  { id: 45, name: 'Quinn Roberts', email: 'quinn@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/45.jpg' },
-  { id: 46, name: 'Riley Scott', email: 'riley@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/46.jpg' },
-  { id: 47, name: 'Samuel Turner', email: 'samuel@example.com', role: 'Admin', profileImage: 'https://randomuser.me/api/portraits/men/47.jpg' },
-  { id: 48, name: 'Tara Underwood', email: 'tara@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/48.jpg' },
-  { id: 49, name: 'Umar Vance', email: 'umar@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/men/49.jpg' },
-  { id: 50, name: 'Vera White', email: 'vera@example.com', role: 'User', profileImage: 'https://randomuser.me/api/portraits/women/50.jpg' },
-];
-
 const Page = () => {
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const usersCollection = collection(db, 'Users');
+        const usersSnapshot = await getDocs(usersCollection);
+        const usersData = usersSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            username: data.username,
+            isbusiness: data.isbusiness,
+            email: data.email,
+            role: data.role,
+            display_picture_url: data.display_picture_url,
+          } as User;
+        });
+        setUsers(usersData);
+      } catch (error) {
+        console.error('Error fetching users: ', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const formatRoles = (role: { business: boolean; customer: boolean; admin: boolean }) => {
+    const roles = [];
+    if (role.business) roles.push('business');
+    if (role.customer) roles.push('customer');
+    if (role.admin) roles.push('admin');
+    return roles.join(' / ');
+  };
+
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -103,6 +100,7 @@ const Page = () => {
               <th className="py-2 px-4 text-left">ID</th>
               <th className="py-2 px-4 text-left">Profile</th>
               <th className="py-2 px-4 text-left">Name</th>
+              <th className="py-2 px-4 text-left">Username</th>
               <th className="py-2 px-4 text-left">Email</th>
               <th className="py-2 px-4 text-left">Role</th>
             </tr>
@@ -112,11 +110,20 @@ const Page = () => {
               <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
                 <td className="py-2 px-4 text-left">{user.id}</td>
                 <td className="py-2 px-4 text-left">
-                  <Image src={user.profileImage} alt={user.name} width={40} height={40} className="rounded-full" />
+                  <div className="w-10 h-10 relative">
+                    <Image src={user.display_picture_url || '/avatar.png'} alt={user.username} layout="fill" objectFit="cover" className="rounded-full" />
+                  </div>
                 </td>
-                <td className="py-2 px-4 text-left">{user.name}</td>
-                <td className="py-2 px-4 text-left">{user.email}</td>
-                <td className="py-2 px-4 text-left">{user.role}</td>
+                <td className="py-2 px-4 text-left">
+                {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Nil'}
+                </td>
+                <td className="py-2 px-4 text-left">
+                  {user.username || 'Nil'}
+                </td>
+                <td className="py-2 px-4 text-left">
+                  {user.email || 'Nil'}
+                </td>
+                <td className="py-2 px-4 text-left">{formatRoles(user.role)}</td>
               </tr>
             ))}
           </tbody>
