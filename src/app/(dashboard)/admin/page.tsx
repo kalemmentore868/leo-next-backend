@@ -142,47 +142,51 @@ const AdminPage = () => {
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 h-[350px] shadow-lg rounded-lg bg-white p-4">
             <h3 className="text-gray-600 font-bold mb-4">User vs. Business Distribution</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  dataKey="value"
-                  data={[
-                    { name: "Users", value: userL },
-                    { name: "Businesses", value: businessL },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                >
-                  {color1.map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-full">
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    dataKey="value"
+                    data={[
+                      { name: "Users", value: userL },
+                      { name: "Businesses", value: businessL },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                  >
+                    {color1.map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
           <div className="flex-1 h-[350px] shadow-lg rounded-lg bg-white p-4">
             <h3 className="text-gray-600 font-bold mb-4">Product vs. Service Distribution</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  dataKey="value"
-                  data={[
-                    { name: "Products", value: productL },
-                    { name: "Services", value: serviceL },
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                >
-                  {color2.map((color, index) => (
-                    <Cell key={`cell-${index}`} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-full">
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    dataKey="value"
+                    data={[
+                      { name: "Products", value: productL },
+                      { name: "Services", value: serviceL },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                  >
+                    {color2.map((color, index) => (
+                      <Cell key={`cell-${index}`} fill={color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
@@ -190,7 +194,7 @@ const AdminPage = () => {
         <div className="flex flex-col gap-8">
           <div className="h-[350px] shadow-lg rounded-lg bg-white p-4">
             <h3 className="text-gray-600 font-bold mb-4">User Registration Trend</h3>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={350}>
               <BarChart data={userDailyCounts}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
@@ -203,7 +207,7 @@ const AdminPage = () => {
           </div>
           <div className="h-[350px] shadow-lg rounded-lg bg-white p-4">
             <h3 className="text-gray-600 font-bold mb-4">Business Registration Trend</h3>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={350}>
               <BarChart data={businessDailyCounts}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
