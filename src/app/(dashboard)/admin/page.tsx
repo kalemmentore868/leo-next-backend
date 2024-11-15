@@ -96,8 +96,8 @@ const AdminPage = () => {
     }));
   };
 
-  const userDailyCounts = calculateDailyCounts(userData);
-  const businessDailyCounts = calculateDailyCounts(businessData);
+  const userDailyCounts = calculateDailyCounts(userData as any);
+  const businessDailyCounts = calculateDailyCounts(businessData as any);
 
   const color1 = ["#7C00FE", "#3b82f6"];
   const color2 = ["#FFAF00", "#F5004F"];
