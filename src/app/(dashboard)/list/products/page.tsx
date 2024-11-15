@@ -5,12 +5,15 @@ import { db } from '@/firebase';
 import {
   collection,
   getDocs,
+  updateDoc,
+  doc,
   DocumentData,
   QuerySnapshot,
 } from 'firebase/firestore';
 
 interface Product {
   id: string;
+  business_id: string;
   name: string;
   description: string;
   display_image_url: string;
@@ -27,6 +30,7 @@ const Page = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const productsPerPage = 10;
 
   useEffect(() => {
@@ -40,6 +44,7 @@ const Page = () => {
             const priceData = await fetchPriceData(doc.id);
             return {
               id: doc.id,
+              business_id: data.business_id,
               name: data.name,
               description: data.description,
               display_image_url: data.display_image_url,
@@ -66,9 +71,32 @@ const Page = () => {
     return priceData || { item_id: productId, price_amount: 0 };
   };
 
+  const handleApproveChange = async (productId: string, approved: boolean) => {
+    try {
+      const productDoc = doc(db, 'Products', productId);
+      await updateDoc(productDoc, { approved });
+      setProducts(prevProducts =>
+        prevProducts.map(product =>
+          product.id === productId ? { ...product, approved } : product
+        )
+      );
+    } catch (error) {
+      console.error('Error updating product approval: ', error);
+    }
+  };
+
+  const handleRowClick = (product: Product) => {
+    setSelectedProduct(product);
+  };
+
+  const closeModal = () => {
+    setSelectedProduct(null);
+  };
+
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.business_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const indexOfLastProduct = currentPage * productsPerPage;
@@ -109,13 +137,18 @@ const Page = () => {
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Description</th>
               <th className="py-2 px-4 text-left">Price</th>
+              <th className="py-2 px-4 text-left">Business ID</th>
             </tr>
           </thead>
           <tbody>
             {currentProducts.map((product, index) => (
-              <tr key={product.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4 text-left">
-                  <input type="checkbox" checked={product.approved} readOnly />
+              <tr key={product.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(product)}>
+                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={product.approved}
+                    onChange={(e) => handleApproveChange(product.id, e.target.checked)}
+                  />
                 </td>
                 <td className="py-2 px-4 text-left">
                   <Image src={product.display_image_url} alt={product.name} width={50} height={50} className="rounded-md" />
@@ -123,6 +156,7 @@ const Page = () => {
                 <td className="py-2 px-4 text-left">{product.name}</td>
                 <td className="py-2 px-4 text-left">{truncateText(product.description, 50)}</td>
                 <td className="py-2 px-4 text-left">${product.price_amount.toFixed(2)}</td>
+                <td className="py-2 px-4 text-left">{product.business_id}</td>
               </tr>
             ))}
           </tbody>
@@ -145,6 +179,26 @@ const Page = () => {
           </ul>
         </nav>
       </div>
+
+      {selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Product Details</h2>
+            <div className="mb-4">
+              <Image src={selectedProduct.display_image_url} alt={selectedProduct.name} width={100} height={100} className="rounded-md" />
+            </div>
+            <p><strong>ID:</strong> {selectedProduct.id}</p>
+            <p><strong>Business ID:</strong> {selectedProduct.business_id}</p>
+            <p><strong>Name:</strong> {selectedProduct.name}</p>
+            <p><strong>Description:</strong> {selectedProduct.description}</p>
+            <p><strong>Price:</strong> ${selectedProduct.price_amount.toFixed(2)}</p>
+            <p><strong>Approved:</strong> {selectedProduct.approved ? 'Yes' : 'No'}</p>
+            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

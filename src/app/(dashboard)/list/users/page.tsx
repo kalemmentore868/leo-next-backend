@@ -26,6 +26,7 @@ const Page = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const usersPerPage = 10;
 
   useEffect(() => {
@@ -76,6 +77,14 @@ const Page = () => {
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
+  const handleRowClick = (user: User) => {
+    setSelectedUser(user);
+  };
+
+  const closeModal = () => {
+    setSelectedUser(null);
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
       <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">Users</h1>
@@ -107,7 +116,7 @@ const Page = () => {
           </thead>
           <tbody>
             {currentUsers.map((user, index) => (
-              <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
+              <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(user)}>
                 <td className="py-2 px-4 text-left">{user.id}</td>
                 <td className="py-2 px-4 text-left">
                   <div className="w-10 h-10 relative">
@@ -115,7 +124,7 @@ const Page = () => {
                   </div>
                 </td>
                 <td className="py-2 px-4 text-left">
-                {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Nil'}
+                  {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Nil'}
                 </td>
                 <td className="py-2 px-4 text-left">
                   {user.username || 'Nil'}
@@ -146,6 +155,27 @@ const Page = () => {
           </ul>
         </nav>
       </div>
+
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">User Details</h2>
+            <div className="mb-4">
+              <Image src={selectedUser.display_picture_url || '/avatar.png'} alt={selectedUser.username} width={100} height={100} className="rounded-full" />
+            </div>
+            <p><strong>ID:</strong> {selectedUser.id}</p>
+            <p><strong>Name:</strong> 
+              {selectedUser.first_name && selectedUser.last_name ? `${selectedUser.first_name} ${selectedUser.last_name}` : 'Nil'}
+            </p>
+            <p><strong>Username:</strong> {selectedUser.username || 'Nil'}</p>
+            <p><strong>Email:</strong> {selectedUser.email}</p>
+            <p><strong>Role:</strong> {formatRoles(selectedUser.role)}</p>
+            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

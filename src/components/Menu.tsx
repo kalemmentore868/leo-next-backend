@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { FaHome, FaUsers, FaStar, FaBullhorn, FaSignOutAlt } from "react-icons/fa"; // Import icons
+import { FaHome, FaUsers, FaStar, FaSignOutAlt } from "react-icons/fa"; // Import icons
 import { IoBag } from "react-icons/io5";
 import { FaShop } from "react-icons/fa6";
 import { MdShoppingCart } from "react-icons/md";
 import { BiSolidCategory } from "react-icons/bi";
+import { MdPayments } from "react-icons/md";
 
 const menuItems = [
   {
@@ -46,9 +47,9 @@ const menuItems = [
         visible: ["admin"],
       },
       {
-        icon: <FaBullhorn />,
-        label: "Announcements",
-        href: "/list/announcements",
+        icon: <MdPayments />,
+        label: "Subscriptions",
+        href: "/list/subscriptions",
         visible: ["admin"],
       },
       {

@@ -5,11 +5,14 @@ import { db } from '@/firebase';
 import {
   collection,
   getDocs,
+  updateDoc,
+  doc,
   DocumentData,
   QuerySnapshot,
 } from 'firebase/firestore';
 
 interface Service {
+  business_id: string;
   id: string;
   name: string;
   description: string;
@@ -29,6 +32,7 @@ const Page = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
   const servicesPerPage = 10;
 
   useEffect(() => {
@@ -41,6 +45,7 @@ const Page = () => {
             const data = doc.data();
             const priceData = await fetchPriceData(doc.id);
             return {
+              business_id: data.business_id,
               id: doc.id,
               name: data.name,
               description: data.description,
@@ -69,9 +74,32 @@ const Page = () => {
     return priceData || { item_id: serviceId, price_amount: 0, price_unit: '' };
   };
 
+  const handleApproveChange = async (serviceId: string, approved: boolean) => {
+    try {
+      const serviceDoc = doc(db, 'Services', serviceId);
+      await updateDoc(serviceDoc, { approved });
+      setServices(prevServices =>
+        prevServices.map(service =>
+          service.id === serviceId ? { ...service, approved } : service
+        )
+      );
+    } catch (error) {
+      console.error('Error updating service approval: ', error);
+    }
+  };
+
+  const handleRowClick = (service: Service) => {
+    setSelectedService(service);
+  };
+
+  const closeModal = () => {
+    setSelectedService(null);
+  };
+
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description.toLowerCase().includes(searchTerm.toLowerCase())
+    service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    service.business_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const indexOfLastService = currentPage * servicesPerPage;
@@ -116,13 +144,18 @@ const Page = () => {
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Description</th>
               <th className="py-2 px-4 text-left">Price</th>
+              <th className="py-2 px-4 text-left">Business ID</th>
             </tr>
           </thead>
           <tbody>
             {currentServices.map((service, index) => (
-              <tr key={service.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4 text-left">
-                  <input type="checkbox" checked={service.approved} readOnly />
+              <tr key={service.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(service)}>
+                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={service.approved}
+                    onChange={(e) => handleApproveChange(service.id, e.target.checked)}
+                  />
                 </td>
                 <td className="py-2 px-4 text-left">
                   <Image src={service.display_image_url} alt={service.name} width={50} height={50} className="rounded-md" />
@@ -130,6 +163,7 @@ const Page = () => {
                 <td className="py-2 px-4 text-left">{service.name}</td>
                 <td className="py-2 px-4 text-left">{service.description}</td>
                 <td className="py-2 px-4 text-left">${service.price_amount.toFixed(2)} / {formatPriceUnit(service.price_unit)}</td>
+                <td className="py-2 px-4 text-left">{service.business_id}</td>
               </tr>
             ))}
           </tbody>
@@ -152,6 +186,26 @@ const Page = () => {
           </ul>
         </nav>
       </div>
+
+      {selectedService && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Service Details</h2>
+            <div className="mb-4">
+              <Image src={selectedService.display_image_url} alt={selectedService.name} width={100} height={100} className="rounded-md" />
+            </div>
+            <p><strong>ID:</strong> {selectedService.id}</p>
+            <p><strong>Business ID:</strong> {selectedService.business_id}</p>
+            <p><strong>Name:</strong> {selectedService.name}</p>
+            <p><strong>Description:</strong> {selectedService.description}</p>
+            <p><strong>Price:</strong> ${selectedService.price_amount.toFixed(2)} / {formatPriceUnit(selectedService.price_unit)}</p>
+            <p><strong>Approved:</strong> {selectedService.approved ? 'Yes' : 'No'}</p>
+            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

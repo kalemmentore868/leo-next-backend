@@ -5,6 +5,8 @@ import { db } from '@/firebase';
 import {
   collection,
   getDocs,
+  updateDoc,
+  doc,
   DocumentData,
   QuerySnapshot,
 } from 'firebase/firestore';
@@ -22,6 +24,7 @@ const Page = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const businessesPerPage = 10;
 
   useEffect(() => {
@@ -48,6 +51,28 @@ const Page = () => {
 
     fetchData();
   }, []);
+
+  const handleApproveChange = async (businessId: string, approved: boolean) => {
+    try {
+      const businessDoc = doc(db, 'Businesses', businessId);
+      await updateDoc(businessDoc, { approved });
+      setBusinesses(prevBusinesses =>
+        prevBusinesses.map(business =>
+          business.id === businessId ? { ...business, approved } : business
+        )
+      );
+    } catch (error) {
+      console.error('Error updating business approval: ', error);
+    }
+  };
+
+  const handleRowClick = (business: Business) => {
+    setSelectedBusiness(business);
+  };
+
+  const closeModal = () => {
+    setSelectedBusiness(null);
+  };
 
   const filteredBusinesses = businesses.filter(business =>
     business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,9 +116,13 @@ const Page = () => {
           </thead>
           <tbody>
             {currentBusinesses.map((business, index) => (
-              <tr key={business.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                <td className="py-2 px-4 text-left">
-                  <input type="checkbox" checked={business.approved} readOnly />
+              <tr key={business.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(business)}>
+                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={business.approved}
+                    onChange={(e) => handleApproveChange(business.id, e.target.checked)}
+                  />
                 </td>
                 <td className="py-2 px-4 text-left">{business.id}</td>
                 <td className="py-2 px-4 text-left">
@@ -132,6 +161,27 @@ const Page = () => {
           </ul>
         </nav>
       </div>
+
+      {selectedBusiness && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Business Details</h2>
+            <div className="flex flex-col gap-2">
+            <div className="mb-4">
+                <Image src={selectedBusiness.display_image_url || '/avatar.png'} alt={selectedBusiness.name} width={100} height={100} className="rounded-md" />
+              </div>
+              <p><strong>ID:</strong> {selectedBusiness.id}</p>
+              <p><strong>Name:</strong> {selectedBusiness.name}</p>
+              <p><strong>Email:</strong> {selectedBusiness.contact_email}</p>
+              <p><strong>Category:</strong> {selectedBusiness.category}</p>
+              <p><strong>Approved:</strong> {selectedBusiness.approved ? 'Yes' : 'No'}</p>
+            </div>
+            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

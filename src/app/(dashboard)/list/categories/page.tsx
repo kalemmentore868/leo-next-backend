@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import { db, storage } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
@@ -11,6 +11,7 @@ export default function Page() {
   const [description, setDescription] = useState('');
   const [iconName, setIconName] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -44,6 +45,9 @@ export default function Page() {
       setDescription('');
       setIconName('');
       setSelectedImage(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       console.error('Error uploading category: ', error);
     }
@@ -63,6 +67,7 @@ export default function Page() {
             accept="image/*"
             onChange={handleImageChange}
             className="w-full p-2 border border-gray-300 rounded-md"
+            ref={fileInputRef}
           />
           {selectedImage && (
             <div className="mt-4 p-4 border border-dashed border-gray-300 rounded-md flex justify-center items-center">

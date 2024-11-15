@@ -5,6 +5,8 @@ import { db } from '@/firebase';
 import {
   collection,
   getDocs,
+  updateDoc,
+  doc,
   DocumentData,
   QuerySnapshot,
 } from 'firebase/firestore';
@@ -23,6 +25,7 @@ const Page = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const reviewsPerPage = 10;
 
   useEffect(() => {
@@ -50,6 +53,28 @@ const Page = () => {
 
     fetchData();
   }, []);
+
+  const handleApproveChange = async (reviewId: string, approved: boolean) => {
+    try {
+      const reviewDoc = doc(db, 'Reviews', reviewId);
+      await updateDoc(reviewDoc, { approved });
+      setReviews(prevReviews =>
+        prevReviews.map(review =>
+          review.id === reviewId ? { ...review, approved } : review
+        )
+      );
+    } catch (error) {
+      console.error('Error updating review approval: ', error);
+    }
+  };
+
+  const handleRowClick = (review: Review) => {
+    setSelectedReview(review);
+  };
+
+  const closeModal = () => {
+    setSelectedReview(null);
+  };
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length > maxLength) {
@@ -88,7 +113,7 @@ const Page = () => {
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
             <tr className="bg-blue-500 text-white">
-            <th className="py-2 px-4 text-left">Approved</th>
+              <th className="py-2 px-4 text-left">Approved</th>
               <th className="py-2 px-4 text-left">ID</th>
               <th className="py-2 px-4 text-left">Business ID</th>
               <th className="py-2 px-4 text-left">User ID</th>
@@ -99,9 +124,13 @@ const Page = () => {
           </thead>
           <tbody>
             {currentReviews.map((review, index) => (
-              <tr key={review.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors`}>
-                 <td className="py-2 px-4">
-                  <input type="checkbox" checked={review.approved} readOnly />
+              <tr key={review.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(review)}>
+                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={review.approved}
+                    onChange={(e) => handleApproveChange(review.id, e.target.checked)}
+                  />
                 </td>
                 <td className="py-2 px-4">{truncateText(review.id, 5)}</td>
                 <td className="py-2 px-4">{truncateText(review.business_id, 5)}</td>
@@ -135,6 +164,31 @@ const Page = () => {
           </ul>
         </nav>
       </div>
+
+      {selectedReview && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+      <h2 className="text-xl font-bold mb-4">Review Details</h2>
+      <div className="flex flex-col gap-2">
+        <p><strong>ID:</strong> {selectedReview.id}</p>
+        <p><strong>Business ID:</strong> {selectedReview.business_id}</p>
+        <p><strong>User ID:</strong> {selectedReview.user_id}</p>
+        <p><strong>Created At:</strong> {new Date(selectedReview.created_at).toLocaleDateString()}</p>
+        <p><strong>Comment:</strong> {selectedReview.comment}</p>
+        <div className="flex items-center gap-1">
+          <p><strong>Rating:</strong></p>
+          {Array.from({ length: selectedReview.rating }, (_, index) => (
+            <FaStar key={index} className="text-yellow-500" />
+          ))}
+        </div>
+        <p><strong>Approved:</strong> {selectedReview.approved ? 'Yes' : 'No'}</p>
+      </div>
+      <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+        Close
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 };
