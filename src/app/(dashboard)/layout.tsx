@@ -2,6 +2,7 @@ import Menu from "@/src/components/Menu";
 import Navbar from "@/src/components/Navbar";
 import Image from "next/image";
 import Link from "next/link";
+import AdminRoute from "@/components/AdminRoute";
 
 export default function DashboardLayout({
   children,
@@ -9,6 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
+    <AdminRoute>
     <div className="h-screen flex">
       {/* LEFT */}
       <div className="w-[14%] md:w-[8%] lg:w-[16%] xl:w-[14%] p-4">
@@ -35,5 +37,6 @@ export default function DashboardLayout({
         {children}
       </div>
     </div>
+    </AdminRoute>
   );
 }
