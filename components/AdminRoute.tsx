@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, ReactNode } from "react";
+import React, { useEffect, ReactNode } from "react";
 
 interface AdminRouteProps {
   children: ReactNode;
@@ -19,7 +19,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
   }, [user, role, loading, router]);
 
   if (loading) {
-    return <div>Loading...</div>; // Add a spinner or skeleton UI.
+    return <div>Loading...</div>; // Add a spinner or skeleton UI
   }
 
   return user && role?.admin ? <>{children}</> : null;

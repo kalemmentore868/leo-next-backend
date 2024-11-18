@@ -12,24 +12,27 @@ const SignInPage: React.FC = () => {
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
   const router = useRouter();
-  const { user, role } = useAuth();
+  const { user, role, loading } = useAuth(); // Get loading state here
 
-  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    setError("");
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      if (role?.admin) {
-        router.push("/admin");
-      } else {
-        setError("You do not have admin access.");
-      }
+      console.log("Signing in...");
+      const userCredentails = await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       setError(err.message);
+      console.error(err.message);
     }
   };
 
-  if (user) {
-    router.push(role?.admin ? "/admin" : "/");
+  // Wait for loading to be false and role to be available
+  if (loading) {
+    return <div>Loading...</div>; // Show a loading spinner while waiting
+  }
+
+  if (user && role?.admin) {
+    router.push("/admin");
     return null;
   }
 
@@ -37,11 +40,13 @@ const SignInPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600">
       <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-lg">
         <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="Logo" width={100} height={100} />
+          <div className="h-20 w-20 mb-4">
+            <Image src="/logo.png" alt="Logo" width={100} height={100} />
+          </div>
         </div>
         <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">Sign In</h2>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-        <form onSubmit={handleSignIn} className="space-y-6">
+        <div className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-gray-700 font-semibold">
               Email
@@ -69,12 +74,12 @@ const SignInPage: React.FC = () => {
             />
           </div>
           <button
-            type="submit"
+            onClick={handleSignIn}
             className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors font-semibold"
           >
             Sign In
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );

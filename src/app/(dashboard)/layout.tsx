@@ -10,6 +10,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
+    <>
     <AdminRoute>
     <div className="h-screen flex">
       {/* LEFT */}
@@ -38,5 +39,6 @@ export default function DashboardLayout({
       </div>
     </div>
     </AdminRoute>
+    </>
   );
 }
