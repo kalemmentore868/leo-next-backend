@@ -28,9 +28,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        const userDoc = await getDoc(doc(db, "Users", currentUser.uid));
-        if (userDoc.exists()) {
-          setRole(userDoc.data() as Role);
+        try {
+          const userDoc = await getDoc(doc(db, "Users", currentUser.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setRole(data.role || null); // Extract the `role` map
+          } else {
+            setRole(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error);
+          setRole(null);
         }
       } else {
         setUser(null);
