@@ -18,8 +18,7 @@ const SignInPage: React.FC = () => {
     e.preventDefault();
     setError("");
     try {
-      console.log("Signing in...");
-      const userCredentails = await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       setError(err.message);
       console.error(err.message);

@@ -9,6 +9,7 @@ import { BiSolidCategory } from "react-icons/bi";
 import { MdPayments } from "react-icons/md";
 import { getAuth, signOut } from 'firebase/auth';
 import { app } from '@/firebase'; // Import your Firebase configuration
+import { useAuth } from '@/context/AuthContext'; // Import the useAuth hook
 
 interface MenuItem {
   icon: JSX.Element;
@@ -92,12 +93,16 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
 
 const Menu = () => {
   const router = useRouter();
+  const { role } = useAuth(); // Get the user's role from the AuthContext
 
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
         <div className="flex flex-col gap-2" key={i.title}>
           {i.items.map((item) => {
+            if (item.visible.includes("admin") && !role?.admin) {
+              return null; // Hide the item if the user is not an admin
+            }
             if (item.onClick) {
               return (
                 <button

@@ -1,6 +1,10 @@
-import Image from "next/image"
+"use client";
+import Image from "next/image";
+import { useAuth } from "@/context/AuthContext";
 
 const Navbar = () => {
+  const { user, role } = useAuth(); // Get the user's information from the AuthContext
+
   return (
     <div className='flex items-center justify-between p-4'>
       {/* SEARCH BAR */}
@@ -11,20 +15,20 @@ const Navbar = () => {
       {/* ICONS AND USER */}
       <div className='flex items-center gap-6 justify-end w-full'>
         <div className='bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer'>
-          <Image src="/message.png" alt="" width={20} height={20}/>
+          <Image src="/message.png" alt="Messages" width={20} height={20}/>
         </div>
         <div className='bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative'>
-          <Image src="/announcement.png" alt="" width={20} height={20}/>
+          <Image src="/announcement.png" alt="Announcements" width={20} height={20}/>
           <div className='absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-blue-500 text-white rounded-full text-xs'>1</div>
         </div>
         <div className='flex flex-col'>
-          <span className="text-xs leading-3 font-medium">John Doe</span>
+          <span className="text-xs leading-3 font-medium">{user?.displayName || "User"}</span>
           <span className="text-[10px] text-gray-500 text-right">Admin</span>
         </div>
-        <Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full"/>
+        <Image src={user?.photoURL || "/avatar.png"} alt="User Avatar" width={36} height={36} className="rounded-full"/>
       </div>
     </div>
-  )
+  );
 }
 
-export default Navbar
+export default Navbar;
