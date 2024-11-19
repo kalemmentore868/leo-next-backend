@@ -33,7 +33,7 @@ export default function Page() {
       // Save metadata to Firestore
       const categoriesCollection = collection(db, 'Categories');
       await addDoc(categoriesCollection, {
-        imageUrl: downloadURL,
+        image_url: downloadURL,
         name,
         description,
         iconName,
