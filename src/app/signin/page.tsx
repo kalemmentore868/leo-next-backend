@@ -43,11 +43,16 @@ const SignInPage: React.FC = () => {
             <Image src="/logo.png" alt="Logo" width={100} height={100} />
           </div>
         </div>
-        <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">Sign In</h2>
+        <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">
+          Sign In
+        </h2>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         <div className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-gray-700 font-semibold">
+            <label
+              htmlFor="email"
+              className="block text-gray-700 font-semibold"
+            >
               Email
             </label>
             <input
@@ -60,7 +65,10 @@ const SignInPage: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-gray-700 font-semibold">
+            <label
+              htmlFor="password"
+              className="block text-gray-700 font-semibold"
+            >
               Password
             </label>
             <input

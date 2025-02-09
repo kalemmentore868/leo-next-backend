@@ -46,6 +46,22 @@ interface DailyCount {
   count: number;
 }
 
+const formatTimestamp = (createdAt: any): string => {
+  if (!createdAt) return "N/A";
+
+  // If it's a Firestore timestamp (seconds & nanoseconds)
+  if (typeof createdAt === "object" && "seconds" in createdAt) {
+    return new Date(createdAt.seconds * 1000).toLocaleDateString();
+  }
+
+  // If it's already a string, return it directly
+  if (typeof createdAt === "string") {
+    return new Date(createdAt).toLocaleDateString();
+  }
+
+  return "Invalid Date";
+};
+
 const AdminPage = () => {
   const [productL, setProductL] = useState<number>(0);
   const [userL, setUserL] = useState<number>(0);
@@ -57,22 +73,31 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const productSnapshot = await getDocs(query(collection(db, "Products")));
+        const productSnapshot = await getDocs(
+          query(collection(db, "Products"))
+        );
         setProductL(productSnapshot.size);
 
-        const serviceSnapshot = await getDocs(query(collection(db, "Services")));
+        const serviceSnapshot = await getDocs(
+          query(collection(db, "Services"))
+        );
         setServiceL(serviceSnapshot.size);
 
         const userSnapshot = await getDocs(query(collection(db, "Users")));
         setUserL(userSnapshot.size);
         const users = userSnapshot.docs.map((doc) => ({
           ...doc.data(),
-          created_at: doc.data().created_at.toDate().toLocaleDateString(),
+          created_at: formatTimestamp(doc.data().created_at),
         }));
+        //@ts-ignore
         setUserData(users);
 
-        const businessSnapshot = await getDocs(query(collection(db, "Businesses")));
+        const businessSnapshot = await getDocs(
+          query(collection(db, "Businesses"))
+        );
+
         setBusinessL(businessSnapshot.size);
+
         const businesses = businessSnapshot.docs.map((doc) => ({
           ...doc.data(),
           created_at: doc.data().created_at.toDate().toLocaleDateString(),
@@ -85,7 +110,9 @@ const AdminPage = () => {
     fetchData();
   }, []);
 
-  const calculateDailyCounts = (data: { created_at: string }[]): DailyCount[] => {
+  const calculateDailyCounts = (
+    data: { created_at: string }[]
+  ): DailyCount[] => {
     const counts: Record<string, number> = {};
     data.forEach(({ created_at }) => {
       counts[created_at] = (counts[created_at] || 0) + 1;
@@ -141,7 +168,9 @@ const AdminPage = () => {
         {/* Pie Charts */}
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 h-[350px] shadow-lg rounded-lg bg-white p-4">
-            <h3 className="text-gray-600 font-bold mb-4">User vs. Business Distribution</h3>
+            <h3 className="text-gray-600 font-bold mb-4">
+              User vs. Business Distribution
+            </h3>
             <div className="h-full">
               <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
@@ -165,7 +194,9 @@ const AdminPage = () => {
             </div>
           </div>
           <div className="flex-1 h-[350px] shadow-lg rounded-lg bg-white p-4">
-            <h3 className="text-gray-600 font-bold mb-4">Product vs. Service Distribution</h3>
+            <h3 className="text-gray-600 font-bold mb-4">
+              Product vs. Service Distribution
+            </h3>
             <div className="h-full">
               <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
@@ -193,7 +224,9 @@ const AdminPage = () => {
         {/* Bar Charts */}
         <div className="flex flex-col gap-8">
           <div className="h-[350px] shadow-lg rounded-lg bg-white p-4">
-            <h3 className="text-gray-600 font-bold mb-4">User Registration Trend</h3>
+            <h3 className="text-gray-600 font-bold mb-4">
+              User Registration Trend
+            </h3>
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={userDailyCounts}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -206,7 +239,9 @@ const AdminPage = () => {
             </ResponsiveContainer>
           </div>
           <div className="h-[350px] shadow-lg rounded-lg bg-white p-4">
-            <h3 className="text-gray-600 font-bold mb-4">Business Registration Trend</h3>
+            <h3 className="text-gray-600 font-bold mb-4">
+              Business Registration Trend
+            </h3>
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={businessDailyCounts}>
                 <CartesianGrid strokeDasharray="3 3" />

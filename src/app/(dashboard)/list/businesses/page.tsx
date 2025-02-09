@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { db } from '@/firebase';
+import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import { db } from "@/firebase";
 import {
   collection,
   getDocs,
@@ -9,7 +9,10 @@ import {
   doc,
   DocumentData,
   QuerySnapshot,
-} from 'firebase/firestore';
+  query,
+  where,
+  deleteDoc,
+} from "firebase/firestore";
 
 interface Business {
   id: string;
@@ -18,21 +21,26 @@ interface Business {
   category: string;
   display_image_url: string;
   approved: boolean;
+  is_featured: boolean;
+  has_paid: boolean;
+  auth_id: string;
 }
 
 const Page = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const businessesPerPage = 10;
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const businessesCollection = collection(db, 'Businesses');
-        const businessesSnapshot: QuerySnapshot<DocumentData> = await getDocs(businessesCollection);
-        const businessesData = businessesSnapshot.docs.map(doc => {
+        const businessesCollection = collection(db, "Businesses");
+        const businessesSnapshot: QuerySnapshot<DocumentData> = await getDocs(
+          businessesCollection
+        );
+        const businessesData = businessesSnapshot.docs.map((doc) => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -41,53 +49,94 @@ const Page = () => {
             category: data.category,
             display_image_url: data.display_image_url,
             approved: data.approved,
+            has_paid: data.has_paid,
+            auth_id: data.auth_id,
           } as Business;
         });
         setBusinesses(businessesData);
       } catch (error) {
-        console.error('Error fetching businesses: ', error);
+        console.error("Error fetching businesses: ", error);
       }
     };
 
     fetchData();
   }, []);
 
+  const handleDelete = async (businessId: string) => {
+    setIsDeleting(true);
+    try {
+      // Step 1: Delete the business document
+      await deleteDoc(doc(db, "Businesses", businessId));
+
+      // Step 2: Define all collections that reference this business
+      const collectionsToDeleteByBusinessId = [
+        "Locations",
+        "Products",
+        "Services",
+        "Specials",
+        "VisibilitySettings",
+        "BusinessExtraDetails",
+        "Galleries",
+      ];
+
+      // Step 3: Loop through collections and delete documents where business_id matches
+      for (const colName of collectionsToDeleteByBusinessId) {
+        const q = query(
+          collection(db, colName),
+          where("business_id", "==", businessId)
+        );
+        const querySnapshot = await getDocs(q);
+
+        querySnapshot.forEach(async (doc) => {
+          await deleteDoc(doc.ref);
+        });
+      }
+
+      // Step 5: Update state to remove the deleted business from the UI
+      setBusinesses((prev) => prev.filter((b) => b.id !== businessId));
+
+      console.log("Business and related documents deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting business: ", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleApproveChange = async (businessId: string, approved: boolean) => {
     try {
-      const businessDoc = doc(db, 'Businesses', businessId);
+      const businessDoc = doc(db, "Businesses", businessId);
       await updateDoc(businessDoc, { approved });
-      setBusinesses(prevBusinesses =>
-        prevBusinesses.map(business =>
+      setBusinesses((prevBusinesses) =>
+        prevBusinesses.map((business) =>
           business.id === businessId ? { ...business, approved } : business
         )
       );
     } catch (error) {
-      console.error('Error updating business approval: ', error);
+      console.error("Error updating business approval: ", error);
     }
   };
 
-  const handleRowClick = (business: Business) => {
-    setSelectedBusiness(business);
-  };
-
-  const closeModal = () => {
-    setSelectedBusiness(null);
-  };
-
-  const filteredBusinesses = businesses.filter(business =>
-    business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    business.contact_email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBusinesses = businesses.filter(
+    (business) =>
+      business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      business.contact_email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const indexOfLastBusiness = currentPage * businessesPerPage;
   const indexOfFirstBusiness = indexOfLastBusiness - businessesPerPage;
-  const currentBusinesses = filteredBusinesses.slice(indexOfFirstBusiness, indexOfLastBusiness);
+  const currentBusinesses = filteredBusinesses.slice(
+    indexOfFirstBusiness,
+    indexOfLastBusiness
+  );
 
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">Businesses</h1>
+      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">
+        Businesses
+      </h1>
 
       <div className="mb-4 w-full max-w-md">
         <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-gray-300 px-2">
@@ -107,38 +156,65 @@ const Page = () => {
           <thead>
             <tr className="bg-blue-500 text-white">
               <th className="py-2 px-4 text-left">Approved</th>
-              <th className="py-2 px-4 text-left">ID</th>
+              <th className="py-2 px-4 text-left">Is Featured</th>
               <th className="py-2 px-4 text-left">Profile</th>
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Email</th>
-              <th className="py-2 px-4 text-left">Category</th>
+              <th className="py-2 px-4 text-left">Is Subscribed</th>
+              <th className="py-2 px-4 text-left">Delete</th>
             </tr>
           </thead>
           <tbody>
             {currentBusinesses.map((business, index) => (
-              <tr key={business.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(business)}>
-                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
+              <tr
+                key={business.id}
+                className={`${
+                  index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"
+                } hover:bg-gray-200 transition-colors cursor-pointer`}
+              >
+                <td
+                  className="py-2 px-4 text-left"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <input
                     type="checkbox"
                     checked={business.approved}
-                    onChange={(e) => handleApproveChange(business.id, e.target.checked)}
+                    onChange={(e) =>
+                      handleApproveChange(business.id, e.target.checked)
+                    }
                   />
                 </td>
-                <td className="py-2 px-4 text-left">{business.id}</td>
+                <td className="py-2 px-4 text-left">
+                  {business.is_featured ? "yes" : "no"}
+                </td>
                 <td className="py-2 px-4 text-left">
                   <div className="w-12 h-12 relative">
-                    <Image 
-                      src={business.display_image_url || '/avatar.png'} 
-                      alt={business.name} 
-                      layout="fill" 
-                      objectFit="cover" 
-                      className="rounded-md" 
+                    <Image
+                      src={business.display_image_url || "/avatar.png"}
+                      alt={business.name}
+                      layout="fill"
+                      objectFit="cover"
+                      className="rounded-md"
                     />
                   </div>
                 </td>
-                <td className="py-2 px-4 text-left">{business.name || 'Nil'}</td>
-                <td className="py-2 px-4 text-left">{business.contact_email || 'Nil'}</td>
-                <td className="py-2 px-4 text-left">{business.category || 'Nil'}</td>
+                <td className="py-2 px-4 text-left">
+                  {business.name || "Nil"}
+                </td>
+                <td className="py-2 px-4 text-left">
+                  {business.contact_email || "Nil"}
+                </td>
+                <td className="py-2 px-4 text-left">
+                  {business.has_paid ? "yes" : "no"}
+                </td>
+                <td className="py-2 px-4 text-left">
+                  <button
+                    onClick={() => handleDelete(business.id)}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -148,40 +224,30 @@ const Page = () => {
       <div className="mt-4">
         <nav>
           <ul className="inline-flex -space-x-px">
-            {Array.from({ length: Math.ceil(filteredBusinesses.length / businessesPerPage) }, (_, index) => (
-              <li key={index}>
-                <button
-                  onClick={() => paginate(index + 1)}
-                  className={`px-3 py-2 leading-tight ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-white text-blue-500'} border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
-                >
-                  {index + 1}
-                </button>
-              </li>
-            ))}
+            {Array.from(
+              {
+                length: Math.ceil(
+                  filteredBusinesses.length / businessesPerPage
+                ),
+              },
+              (_, index) => (
+                <li key={index}>
+                  <button
+                    onClick={() => paginate(index + 1)}
+                    className={`px-3 py-2 leading-tight ${
+                      currentPage === index + 1
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-blue-500"
+                    } border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
+                  >
+                    {index + 1}
+                  </button>
+                </li>
+              )
+            )}
           </ul>
         </nav>
       </div>
-
-      {selectedBusiness && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Business Details</h2>
-            <div className="flex flex-col gap-2">
-            <div className="mb-4">
-                <Image src={selectedBusiness.display_image_url || '/avatar.png'} alt={selectedBusiness.name} width={100} height={100} className="rounded-md" />
-              </div>
-              <p><strong>ID:</strong> {selectedBusiness.id}</p>
-              <p><strong>Name:</strong> {selectedBusiness.name}</p>
-              <p><strong>Email:</strong> {selectedBusiness.contact_email}</p>
-              <p><strong>Category:</strong> {selectedBusiness.category}</p>
-              <p><strong>Approved:</strong> {selectedBusiness.approved ? 'Yes' : 'No'}</p>
-            </div>
-            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

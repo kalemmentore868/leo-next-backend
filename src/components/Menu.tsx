@@ -1,15 +1,16 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
 import { FaHome, FaUsers, FaStar, FaSignOutAlt } from "react-icons/fa"; // Import icons
 import { IoBag } from "react-icons/io5";
 import { FaShop } from "react-icons/fa6";
 import { MdShoppingCart } from "react-icons/md";
 import { BiSolidCategory } from "react-icons/bi";
 import { MdPayments } from "react-icons/md";
-import { getAuth, signOut } from 'firebase/auth';
-import { app } from '@/firebase'; // Import your Firebase configuration
-import { useAuth } from '@/context/AuthContext'; // Import the useAuth hook
+import { getAuth, signOut } from "firebase/auth";
+import { app } from "@/firebase"; // Import your Firebase configuration
+import { useAuth } from "@/context/AuthContext"; // Import the useAuth hook
+import { HiCash } from "react-icons/hi";
 
 interface MenuItem {
   icon: JSX.Element;
@@ -54,6 +55,12 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         visible: ["admin"],
       },
       {
+        icon: <HiCash />,
+        label: "Specials",
+        href: "/list/specials",
+        visible: ["admin"],
+      },
+      {
         icon: <FaStar />,
         label: "Reviews",
         href: "/list/reviews",
@@ -61,7 +68,7 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
       },
       {
         icon: <MdPayments />,
-        label: "Subscriptions",
+        label: "Orders",
         href: "/list/subscriptions",
         visible: ["admin"],
       },
@@ -84,7 +91,7 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         onClick: async (router: any) => {
           const auth = getAuth(app);
           await signOut(auth);
-          router.push('/signin');
+          router.push("/signin");
         },
       },
     ],
