@@ -1,5 +1,5 @@
-import { customAuthFetch } from "@/data/services/util"; // assuming you have this
-import { Message } from "@/types/Messages"; // assuming you have this
+import { customAuthFetch } from "./util"; // assuming you have this
+import { Message } from "@/src/types/Messages"; // assuming you have this
 
 export class MessagesService {
   // Send/create a new message

@@ -1,6 +1,6 @@
 // app/(admin)/businesses/page.tsx
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   AdminService,
@@ -44,24 +44,30 @@ const BusinessesPage = () => {
   const [loading, setLoading] = useState(false);
 
   /* fetch ----------------------------------------------------------------*/
-  const fetchBusinesses = async () => {
+  const fetchBusinesses = useCallback(async () => {
     setLoading(true);
-    const params = buildParams(
-      page,
-      search,
-      featuredOnly,
-      subscribedOnly,
-      approvedOnly
-    );
-    const token = await getToken();
-    const data = await AdminService.getAllBusinesses(`${token}`, params);
-    if (data) setBusinesses(data);
-    setLoading(false);
-  };
+    try {
+      const token = await getToken();
+      const params = buildParams(
+        page,
+        search,
+        featuredOnly,
+        subscribedOnly,
+        approvedOnly
+      );
+
+      if (token) {
+        const data = await AdminService.getAllBusinesses(token, params);
+        setBusinesses(data ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, featuredOnly, subscribedOnly, approvedOnly]);
 
   useEffect(() => {
     fetchBusinesses();
-  }, [page, featuredOnly, subscribedOnly, approvedOnly]);
+  }, [page, featuredOnly, subscribedOnly, approvedOnly, fetchBusinesses]);
   /* on‑demand search */
   const onSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -122,7 +128,7 @@ const BusinessesPage = () => {
               setFeatured(e.target.checked || undefined);
             }}
           />
-          Featured
+          Featured Only
         </label>
 
         <label className="flex items-center gap-1 text-sm">
@@ -144,7 +150,7 @@ const BusinessesPage = () => {
               setPaid(e.target.checked || undefined);
             }}
           />
-          Subscribed
+          Subscribed Only
         </label>
 
         <button

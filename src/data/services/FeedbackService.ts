@@ -1,4 +1,4 @@
-import { AppFeedback } from "@/types/Feedback";
+import { AppFeedback } from "@/src/types/Feedback";
 import { customAuthFetch } from "./util";
 
 export class FeedbackService {

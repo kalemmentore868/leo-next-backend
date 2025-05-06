@@ -6,20 +6,7 @@ import MessageList from "@/src/components/MessageList";
 import { MdShoppingCart } from "react-icons/md";
 import { IoPeopleSharp, IoBag } from "react-icons/io5";
 import { FaShop, FaDollarSign } from "react-icons/fa6";
-import { Timestamp } from "firebase/firestore";
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { AdminService } from "@/src/data/services/AdminService";
 import { User } from "@/src/types/User";
 import { Business } from "@/src/types/Business";
@@ -28,22 +15,6 @@ interface DailyCount {
   date: string;
   count: number;
 }
-
-const formatTimestamp = (createdAt: any): string => {
-  if (!createdAt) return "N/A";
-
-  // If it's a Firestore timestamp (seconds & nanoseconds)
-  if (typeof createdAt === "object" && "seconds" in createdAt) {
-    return new Date(createdAt.seconds * 1000).toLocaleDateString();
-  }
-
-  // If it's already a string, return it directly
-  if (typeof createdAt === "string") {
-    return new Date(createdAt).toLocaleDateString();
-  }
-
-  return "Invalid Date";
-};
 
 const AdminPage = () => {
   const [productL, setProductL] = useState<number>(0);

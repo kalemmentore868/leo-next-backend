@@ -1,6 +1,6 @@
-import { Business } from "@/types/Business";
+import { Business } from "@/src/types/Business";
 import { customAuthFetch } from "./util";
-import { Like } from "@/types/Likes"; // Assuming you have this type
+import { Like } from "@/src/types/Likes"; // Assuming you have this type
 
 export class LikeService {
   static async getLike(

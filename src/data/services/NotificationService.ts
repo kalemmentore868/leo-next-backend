@@ -1,4 +1,4 @@
-import { Notification } from "@/types/Notifications";
+import { Notification } from "@/src/types/Notifications";
 import { customAuthFetch } from "./util";
 
 export class NotificationService {

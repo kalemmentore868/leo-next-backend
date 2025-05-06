@@ -1,4 +1,4 @@
-import { Category, Subcategory } from "@/types/Category";
+import { Category, Subcategory } from "@/src/types/Category";
 import { customAuthFetch } from "./util";
 
 export class CategoryService {

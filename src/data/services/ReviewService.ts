@@ -1,5 +1,5 @@
 import { customAuthFetch } from "./util";
-import { ReviewItem } from "@/types/interface";
+import { ReviewItem } from "@/src/types/interface";
 
 export class ReviewService {
   static async getReviewsByBusinessId(

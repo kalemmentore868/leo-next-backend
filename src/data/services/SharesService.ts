@@ -1,5 +1,5 @@
 import { customAuthFetch } from "./util";
-import { Share } from "@/types/Share";
+import { Share } from "@/src/types/Share";
 
 export class ShareService {
   // Get a specific share by business_id and user_id

@@ -1,5 +1,3 @@
-import { OpeningHour } from "@/components/business/details/OpeningHours.ios";
-
 export enum item_type {
   PRODUCT,
   SERVICE,
@@ -342,7 +340,7 @@ export interface Policy {
 export interface BusinessExtraDetails {
   id?: string;
   business_id?: string;
-  opening_hours: OpeningHour[];
+
   amenities: string[];
   policy: Policy;
 }
