@@ -1,142 +1,125 @@
+/* src/app/(dashboard)/list/products/page.tsx */
+
 "use client";
-import React, { useEffect, useState } from "react";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { db } from "@/firebase";
 import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  DocumentData,
-  QuerySnapshot,
-} from "firebase/firestore";
+  AdminService,
+  AggregatedService as AggregatedProduct, // same shape
+  GetAllServicesParams, // reuse
+} from "@/src/data/services/AdminService";
+import { auth } from "@/firebase";
+import { getIdToken } from "firebase/auth";
 
-interface Product {
-  id: string;
-  business_id: string;
-  name: string;
-  description: string;
-  display_image_url: string;
-  price_amount: number;
-  approved: boolean;
+/* helpers ------------------------------------------------------------------*/
+async function getToken(): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No Firebase user");
+  return getIdToken(user, true);
 }
 
-interface PriceData {
-  item_id: string;
-  price_amount: number;
-}
+/* component ----------------------------------------------------------------*/
+export default function ProductsPage() {
+  const [products, setProducts] = useState<AggregatedProduct[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<AggregatedProduct | null>(null);
 
-const Page = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const productsPerPage = 10;
+  /* fetch list -------------------------------------------------------------*/
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const params: GetAllServicesParams = {
+        page,
+        limit,
+        search,
+        type: "product",
+      };
+      const res = await AdminService.getAllServices(token, params);
+      if (res) {
+        setProducts(res.data);
+        setTotal(res.total);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, search]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const productsCollection = collection(db, "Products");
-        const productsSnapshot: QuerySnapshot<DocumentData> = await getDocs(
-          productsCollection
-        );
-        const productsData = await Promise.all(
-          productsSnapshot.docs.map(async (doc) => {
-            const data = doc.data();
+    fetchProducts();
+  }, [fetchProducts]);
 
-            const priceData = await fetchPriceData(doc.id);
-            return {
-              id: doc.id,
-              business_id: data.business_id,
-              name: data.name,
-              description: data.description,
-              display_image_url: data.display_image_url,
-              price_amount: priceData?.price_amount,
-              approved: data.approved,
-            } as Product;
-          })
-        );
-        setProducts(productsData);
-      } catch (error) {
-        console.error("Error fetching products: ", error);
-      }
-    };
+  /* optimistic approval toggle --------------------------------------------*/
+  const toggleApprove = async (prd: AggregatedProduct) => {
+    const newApproved = !prd.approved; // desired value
 
-    fetchData();
-  }, []);
+    // optimistic UI ---------------------------------------------------------
+    setProducts((curr) =>
+      curr.map((p) =>
+        p.business_auth_id === prd.business_auth_id && p.index === prd.index
+          ? { ...p, approved: newApproved }
+          : p
+      )
+    );
 
-  const fetchPriceData = async (productId: string): Promise<PriceData> => {
-    const priceCollection = collection(db, "Prices");
-    const priceSnapshot = await getDocs(priceCollection);
-    const priceData = priceSnapshot.docs
-      .map((doc) => doc.data() as PriceData)
-      .find((price) => price.item_id === productId);
-    return priceData || { item_id: productId, price_amount: 0 };
-  };
-
-  const handleApproveChange = async (productId: string, approved: boolean) => {
     try {
-      const productDoc = doc(db, "Products", productId);
-      await updateDoc(productDoc, { approved });
-      setProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId ? { ...product, approved } : product
+      const token = await getToken();
+      await AdminService.updateService(
+        token,
+        prd.index,
+        prd.business_auth_id,
+        newApproved, // 👈 send it
+        "product"
+      );
+    } catch (err) {
+      console.error(err);
+      // rollback on failure --------------------------------------------------
+      setProducts((curr) =>
+        curr.map((p) =>
+          p.business_auth_id === prd.business_auth_id && p.index === prd.index
+            ? { ...p, approved: prd.approved }
+            : p
         )
       );
-    } catch (error) {
-      console.error("Error updating product approval: ", error);
     }
   };
 
-  const handleRowClick = (product: Product) => {
-    setSelectedProduct(product);
-  };
+  /* derived ----------------------------------------------------------------*/
+  const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
 
-  const closeModal = () => {
-    setSelectedProduct(null);
-  };
-
-  const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.business_id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = filteredProducts.slice(
-    indexOfFirstProduct,
-    indexOfLastProduct
-  );
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length > maxLength) {
-      return text.slice(0, maxLength) + "...";
-    }
-    return text;
-  };
-
+  /* render -----------------------------------------------------------------*/
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">
-        Products
-      </h1>
+      <h1 className="text-xl font-bold mb-4 text-gray-800">Products</h1>
 
-      <div className="mb-4 w-full max-w-md">
+      {/* search -------------------------------------------------------------*/}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          fetchProducts();
+        }}
+        className="mb-4 w-full max-w-md"
+      >
         <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-gray-300 px-2">
           <input
-            type="text"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products…"
             className="w-full p-2 bg-transparent outline-none"
           />
+          <button type="submit" className="hidden" />
         </div>
-      </div>
+      </form>
 
+      {/* table --------------------------------------------------------------*/}
       <div className="overflow-x-auto w-full">
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
@@ -146,116 +129,120 @@ const Page = () => {
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Description</th>
               <th className="py-2 px-4 text-left">Price</th>
-              <th className="py-2 px-4 text-left">Business ID</th>
+              <th className="py-2 px-4 text-left">Business Auth ID</th>
             </tr>
           </thead>
           <tbody>
-            {currentProducts.map((product, index) => (
-              <tr
-                key={product.id}
-                className={`${
-                  index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"
-                } hover:bg-gray-200 transition-colors cursor-pointer`}
-                onClick={() => handleRowClick(product)}
-              >
-                <td
-                  className="py-2 px-4 text-left"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <input
-                    type="checkbox"
-                    checked={product.approved}
-                    onChange={(e) =>
-                      handleApproveChange(product.id, e.target.checked)
-                    }
-                  />
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="text-center p-6">
+                  Loading…
                 </td>
-                <td className="py-2 px-4 text-left">
-                  <Image
-                    src={product.display_image_url || "/default-image.png"} // Use a placeholder
-                    alt={product.name || "Product Image"}
-                    width={50}
-                    height={50}
-                    className="rounded-md"
-                  />
-                </td>
-                <td className="py-2 px-4 text-left">{product.name}</td>
-                <td className="py-2 px-4 text-left">
-                  {truncateText(product.description, 50)}
-                </td>
-                <td className="py-2 px-4 text-left">
-                  ${product.price_amount.toFixed(2)}
-                </td>
-                <td className="py-2 px-4 text-left">{product.business_id}</td>
               </tr>
-            ))}
+            ) : products.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center p-6">
+                  No products found
+                </td>
+              </tr>
+            ) : (
+              products.map((prd, i) => (
+                <tr
+                  key={prd.business_auth_id + prd.index}
+                  className={`${
+                    i % 2 ? "bg-gray-100" : "bg-gray-50"
+                  } hover:bg-gray-200 cursor-pointer`}
+                  onClick={() => setSelected(prd)}
+                >
+                  <td
+                    className="py-2 px-4"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleApprove(prd);
+                    }}
+                  >
+                    <input type="checkbox" checked={prd.approved} readOnly />
+                  </td>
+                  <td className="py-2 px-4">
+                    <Image
+                      src={prd.display_image_url || "/placeholder.png"}
+                      alt={prd.name}
+                      width={50}
+                      height={50}
+                      className="rounded-md object-cover"
+                    />
+                  </td>
+                  <td className="py-2 px-4">{prd.name}</td>
+                  <td className="py-2 px-4 truncate max-w-xs">
+                    {prd.description}
+                  </td>
+                  <td className="py-2 px-4">${prd.price.toFixed(2)}</td>
+                  <td className="py-2 px-4">{prd.business_auth_id}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      <div className="mt-4">
-        <nav>
+      {/* pagination ---------------------------------------------------------*/}
+      {totalPages > 1 && (
+        <div className="mt-4">
           <ul className="inline-flex -space-x-px">
-            {Array.from(
-              { length: Math.ceil(filteredProducts.length / productsPerPage) },
-              (_, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => paginate(index + 1)}
-                    className={`px-3 py-2 leading-tight ${
-                      currentPage === index + 1
-                        ? "bg-blue-500 text-white"
-                        : "bg-white text-blue-500"
-                    } border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
-                  >
-                    {index + 1}
-                  </button>
-                </li>
-              )
-            )}
+            {Array.from({ length: totalPages }, (_, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => setPage(i + 1)}
+                  className={`px-3 py-2 leading-tight ${
+                    page === i + 1
+                      ? "bg-blue-500 text-white"
+                      : "bg-white text-blue-500"
+                  } border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
+                >
+                  {i + 1}
+                </button>
+              </li>
+            ))}
           </ul>
-        </nav>
-      </div>
+        </div>
+      )}
 
-      {selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      {/* modal --------------------------------------------------------------*/}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Product Details</h2>
-            <div className="mb-4">
-              <Image
-                src={
-                  selectedProduct.display_image_url
-                    ? selectedProduct.display_image_url
-                    : ""
-                }
-                alt={selectedProduct.name}
-                width={100}
-                height={100}
-                className="rounded-md"
-              />
-            </div>
+            <h2 className="text-xl font-bold mb-4">Product details</h2>
+
+            <Image
+              src={selected.display_image_url || "/placeholder.png"}
+              alt={selected.name}
+              width={120}
+              height={120}
+              className="rounded-md mb-4 object-cover"
+            />
+
             <p>
-              <strong>ID:</strong> {selectedProduct.id}
+              <b>Index:</b> {selected.index}
             </p>
             <p>
-              <strong>Business ID:</strong> {selectedProduct.business_id}
+              <b>Business Auth ID:</b> {selected.business_auth_id}
             </p>
             <p>
-              <strong>Name:</strong> {selectedProduct.name}
+              <b>Name:</b> {selected.name}
             </p>
             <p>
-              <strong>Description:</strong> {selectedProduct.description}
+              <b>Description:</b> {selected.description}
             </p>
             <p>
-              <strong>Price:</strong> ${selectedProduct.price_amount.toFixed(2)}
+              <b>Price:</b> ${selected.price.toFixed(2)}
             </p>
             <p>
-              <strong>Approved:</strong>{" "}
-              {selectedProduct.approved ? "Yes" : "No"}
+              <b>Approved:</b> {selected.approved ? "Yes" : "No"}
             </p>
+
             <button
-              onClick={closeModal}
-              className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors"
+              onClick={() => setSelected(null)}
+              className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
               Close
             </button>
@@ -264,6 +251,4 @@ const Page = () => {
       )}
     </div>
   );
-};
-
-export default Page;
+}

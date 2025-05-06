@@ -1,176 +1,198 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { db } from '@/firebase';
-import {
-  collection,
-  getDocs,
-} from 'firebase/firestore';
 
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  username: string;
-  isbusiness: boolean;
-  email: string;
-  role: {
-    business: boolean;
-    customer: boolean;
-    admin: boolean;
-  };
-  display_picture_url: string;
-}
+import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { UserService, PaginatedUsers } from "@/src/data/services/UserService";
+import { User } from "@/src/types/User"; // <- make sure paths match
+import { getToken } from "@/src/data/services/util"; // <- your helper that calls firebase.getIdToken()
 
-const Page = () => {
+const USERS_PER_PAGE = 10;
+
+const UsersPage = () => {
+  /* ------------------------------------------------------------------ state */
   const [users, setUsers] = useState<User[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const usersPerPage = 10;
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<User | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const usersCollection = collection(db, 'Users');
-        const usersSnapshot = await getDocs(usersCollection);
-        const usersData = usersSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            first_name: data.first_name,
-            last_name: data.last_name,
-            username: data.username,
-            isbusiness: data.isbusiness,
-            email: data.email,
-            role: data.role,
-            display_picture_url: data.display_picture_url,
-          } as User;
-        });
-        setUsers(usersData);
-      } catch (error) {
-        console.error('Error fetching users: ', error);
+  /* -------------------------------------------------------- fetch & helpers */
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const data = await UserService.getAllUsers(token, {
+        page,
+        limit: USERS_PER_PAGE,
+        search,
+      });
+
+      if (data) {
+        setUsers(data.data);
+        setTotal(data.total);
       }
-    };
-
-    fetchData();
-  }, []);
-
-  const formatRoles = (role: { business: boolean; customer: boolean; admin: boolean }) => {
-    const roles = [];
-    if (role.business) roles.push('business');
-    if (role.customer) roles.push('customer');
-    if (role.admin) roles.push('admin');
-    return roles.join(' / ');
+    } catch (e) {
+      console.error("Error fetching users:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  // request fresh data whenever page / search changes
+  useEffect(() => {
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]); // search triggers fetch via onSearch submit
+
+  /* ---------------------------------------------- derived / memoised values */
+  const totalPages = useMemo(
+    () => Math.ceil(total / USERS_PER_PAGE) || 1,
+    [total]
   );
 
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const handleRowClick = (user: User) => {
-    setSelectedUser(user);
-  };
-
-  const closeModal = () => {
-    setSelectedUser(null);
-  };
-
+  /* ------------------------------------------------------------------ jsx */
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">Users</h1>
+      <h1 className="text-xl font-bold mb-4 text-gray-800">Users</h1>
 
-      <div className="mb-4 w-full max-w-md">
+      {/* ------------ search ------------ */}
+      <form
+        className="mb-4 w-full max-w-md"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1); // reset to first page
+          fetchUsers(); // trigger fetch with current search
+        }}
+      >
         <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-gray-300 px-2">
           <Image src="/search.png" alt="" width={14} height={14} />
           <input
             type="text"
             placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-full p-2 bg-transparent outline-none"
           />
         </div>
-      </div>
+      </form>
 
+      {/* ------------ table ------------ */}
       <div className="overflow-x-auto w-full">
-        <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
-          <thead>
-            <tr className="bg-blue-500 text-white">
-              <th className="py-2 px-4 text-left">ID</th>
-              <th className="py-2 px-4 text-left">Profile</th>
-              <th className="py-2 px-4 text-left">Name</th>
-              <th className="py-2 px-4 text-left">Username</th>
-              <th className="py-2 px-4 text-left">Email</th>
-              <th className="py-2 px-4 text-left">Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentUsers.map((user, index) => (
-              <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(user)}>
-                <td className="py-2 px-4 text-left">{user.id}</td>
-                <td className="py-2 px-4 text-left">
-                  <div className="w-10 h-10 relative">
-                    <Image src={user.display_picture_url || '/avatar.png'} alt={user.username} layout="fill" objectFit="cover" className="rounded-full" />
-                  </div>
-                </td>
-                <td className="py-2 px-4 text-left">
-                  {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : 'Nil'}
-                </td>
-                <td className="py-2 px-4 text-left">
-                  {user.username || 'Nil'}
-                </td>
-                <td className="py-2 px-4 text-left">
-                  {user.email || 'Nil'}
-                </td>
-                <td className="py-2 px-4 text-left">{formatRoles(user.role)}</td>
+        {loading ? (
+          <p className="text-center p-8">Loading…</p>
+        ) : (
+          <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
+            <thead>
+              <tr className="bg-blue-500 text-white">
+                <th className="py-2 px-4 text-left">ID</th>
+                <th className="py-2 px-4 text-left">Profile</th>
+                <th className="py-2 px-4 text-left">Name</th>
+                <th className="py-2 px-4 text-left">Username</th>
+                <th className="py-2 px-4 text-left">Email</th>
+                <th className="py-2 px-4 text-left">Role</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
 
-      <div className="mt-4">
-        <nav>
-          <ul className="inline-flex -space-x-px">
-            {Array.from({ length: Math.ceil(filteredUsers.length / usersPerPage) }, (_, index) => (
-              <li key={index}>
-                <button
-                  onClick={() => paginate(index + 1)}
-                  className={`px-3 py-2 leading-tight ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-white text-blue-500'} border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
+            <tbody>
+              {users.map((u, i) => (
+                <tr
+                  key={u.auth_id}
+                  className={`${
+                    i % 2 ? "bg-gray-100" : "bg-gray-50"
+                  } hover:bg-gray-200 cursor-pointer transition-colors`}
+                  onClick={() => setSelected(u)}
                 >
-                  {index + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+                  <td className="py-2 px-4">{u.auth_id}</td>
+                  <td className="py-2 px-4">
+                    <div className="w-10 h-10 relative">
+                      <Image
+                        src={u.display_picture_url || "/avatar.png"}
+                        alt={u.username}
+                        fill
+                        className="rounded-full object-cover"
+                      />
+                    </div>
+                  </td>
+                  <td className="py-2 px-4">
+                    {u.first_name && u.last_name
+                      ? `${u.first_name} ${u.last_name}`
+                      : "Nil"}
+                  </td>
+                  <td className="py-2 px-4">{u.username || "Nil"}</td>
+                  <td className="py-2 px-4">{u.email || "Nil"}</td>
+                  <td className="py-2 px-4">
+                    {["business", "customer", "admin"]
+                      .filter((r) => (u.role as any)[r])
+                      .join(" / ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      {/* ------------ pagination ------------ */}
+      <div className="mt-4">
+        <ul className="inline-flex -space-x-px">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <li key={p}>
+              <button
+                onClick={() => setPage(p)}
+                disabled={p === page}
+                className={`px-3 py-2 leading-tight border border-gray-300 ${
+                  p === page
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-blue-500 hover:bg-gray-100 hover:text-blue-700"
+                }`}
+              >
+                {p}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* ------------ modal ------------ */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">User Details</h2>
-            <div className="mb-4">
-              <Image src={selectedUser.display_picture_url || '/avatar.png'} alt={selectedUser.username} width={100} height={100} className="rounded-full" />
-            </div>
-            <p><strong>ID:</strong> {selectedUser.id}</p>
-            <p><strong>Name:</strong> 
-              {selectedUser.first_name && selectedUser.last_name ? `${selectedUser.first_name} ${selectedUser.last_name}` : 'Nil'}
+            <Image
+              src={selected.display_picture_url || "/avatar.png"}
+              alt={selected.username}
+              width={100}
+              height={100}
+              className="rounded-full mb-4"
+            />
+            <p>
+              <strong>ID:</strong> {selected.auth_id}
             </p>
-            <p><strong>Username:</strong> {selectedUser.username || 'Nil'}</p>
-            <p><strong>Email:</strong> {selectedUser.email}</p>
-            <p><strong>Role:</strong> {formatRoles(selectedUser.role)}</p>
-            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+            <p>
+              <strong>Name:</strong>{" "}
+              {selected.first_name && selected.last_name
+                ? `${selected.first_name} ${selected.last_name}`
+                : "Nil"}
+            </p>
+            <p>
+              <strong>Username:</strong> {selected.username || "Nil"}
+            </p>
+            <p>
+              <strong>Email:</strong> {selected.email}
+            </p>
+            <p>
+              <strong>Role:</strong>{" "}
+              {["business", "customer", "admin"]
+                .filter((r) => (selected.role as any)[r])
+                .join(" / ")}
+            </p>
+
+            <button
+              onClick={() => setSelected(null)}
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+            >
               Close
             </button>
           </div>
@@ -180,4 +202,4 @@ const Page = () => {
   );
 };
 
-export default Page;
+export default UsersPage;

@@ -1,140 +1,136 @@
+/* src/app/(dashboard)/list/services/page.tsx
+   Uses AdminService.getAllServices (+ optional approval toggle) */
+
 "use client";
-import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
-import { db } from '@/firebase';
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  DocumentData,
-  QuerySnapshot,
-} from 'firebase/firestore';
+  AdminService,
+  AggregatedService,
+  GetAllServicesParams,
+} from "@/src/data/services/AdminService";
+import { Product } from "@/src/types/Business";
+import { getIdToken } from "firebase/auth";
+import { auth } from "@/firebase";
 
-interface Service {
-  business_id: string;
-  id: string;
-  name: string;
-  description: string;
-  display_image_url: string;
-  price_amount: number;
-  price_unit: string;
-  approved: boolean;
+/* -------------------------------------------------------------------------- */
+/* helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+async function getToken(): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No Firebase user");
+  return getIdToken(user, /*forceRefresh*/ true);
 }
 
-interface PriceData {
-  item_id: string;
-  price_amount: number;
-  price_unit: string;
-}
+/* -------------------------------------------------------------------------- */
+/* component                                                                  */
+/* -------------------------------------------------------------------------- */
 
-const Page = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const servicesPerPage = 10;
+export default function ServicesPage() {
+  /* UI state ----------------------------------------------------------------*/
+  const [services, setServices] = useState<AggregatedService[]>([]);
+  const [total, setTotal] = useState(0); // from API
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<AggregatedService | null>(null);
+
+  /* fetch -------------------------------------------------------------------*/
+  const fetchServices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const params: GetAllServicesParams = {
+        page,
+        limit,
+        search,
+        type: "service",
+      };
+      const res = await AdminService.getAllServices(token, params);
+      if (res) {
+        setServices(res.data);
+        setTotal(res.total);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, search]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const servicesCollection = collection(db, 'Services');
-        const servicesSnapshot: QuerySnapshot<DocumentData> = await getDocs(servicesCollection);
-        const servicesData = await Promise.all(
-          servicesSnapshot.docs.map(async (doc) => {
-            const data = doc.data();
-            const priceData = await fetchPriceData(doc.id);
-            return {
-              business_id: data.business_id,
-              id: doc.id,
-              name: data.name,
-              description: data.description,
-              display_image_url: data.display_image_url,
-              price_amount: priceData.price_amount,
-              price_unit: priceData.price_unit,
-              approved: data.approved,
-            } as Service;
-          })
-        );
-        setServices(servicesData);
-      } catch (error) {
-        console.error('Error fetching services: ', error);
-      }
-    };
+    fetchServices();
+  }, [fetchServices]);
 
-    fetchData();
-  }, []);
-
-  const fetchPriceData = async (serviceId: string): Promise<PriceData> => {
-    const priceCollection = collection(db, 'Prices');
-    const priceSnapshot = await getDocs(priceCollection);
-    const priceData = priceSnapshot.docs
-      .map(doc => doc.data() as PriceData)
-      .find(price => price.item_id === serviceId);
-    return priceData || { item_id: serviceId, price_amount: 0, price_unit: '' };
-  };
-
-  const handleApproveChange = async (serviceId: string, approved: boolean) => {
+  /* optimistic approval toggle ---------------------------------------------*/
+  const toggleApprove = async (svc: AggregatedService) => {
+    const newApproved = !svc.approved; // desired value
     try {
-      const serviceDoc = doc(db, 'Services', serviceId);
-      await updateDoc(serviceDoc, { approved });
-      setServices(prevServices =>
-        prevServices.map(service =>
-          service.id === serviceId ? { ...service, approved } : service
+      // optimistic UI
+      setServices((cur) =>
+        cur.map((s) =>
+          s.business_auth_id === svc.business_auth_id && s.index === svc.index
+            ? { ...s, approved: !s.approved }
+            : s
         )
       );
-    } catch (error) {
-      console.error('Error updating service approval: ', error);
+
+      const token = await getToken();
+      /* you should expose PUT /admins/services/:id that updates { approved } */
+      await AdminService.updateService(
+        token,
+        svc.index,
+        svc.business_auth_id,
+        newApproved,
+        "service"
+      );
+    } catch (err) {
+      console.error(err);
+      // rollback on error
+      setServices((cur) =>
+        cur.map((s) =>
+          s.business_auth_id === svc.business_auth_id && s.index === svc.index
+            ? { ...s, approved: svc.approved }
+            : s
+        )
+      );
     }
   };
 
-  const handleRowClick = (service: Service) => {
-    setSelectedService(service);
-  };
+  /* derived -----------------------------------------------------------------*/
+  const totalPages = useMemo(() => Math.ceil(total / limit), [total, limit]);
 
-  const closeModal = () => {
-    setSelectedService(null);
-  };
-
-  const filteredServices = services.filter(service =>
-    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.business_id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const indexOfLastService = currentPage * servicesPerPage;
-  const indexOfFirstService = indexOfLastService - servicesPerPage;
-  const currentServices = filteredServices.slice(indexOfFirstService, indexOfLastService);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const formatPriceUnit = (priceUnit: string) => {
-    switch (priceUnit) {
-      case 'per_hour':
-        return 'hr';
-      case 'per_week':
-        return 'wk';
-      default:
-        return priceUnit;
-    }
-  };
-
+  /* render ------------------------------------------------------------------*/
   return (
     <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">Services</h1>
+      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">
+        Services
+      </h1>
 
-      <div className="mb-4 w-full max-w-md">
+      {/* search box */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          fetchServices();
+        }}
+        className="mb-4 w-full max-w-md"
+      >
         <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-gray-300 px-2">
           <input
-            type="text"
-            placeholder="Search services..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search services…"
             className="w-full p-2 bg-transparent outline-none"
           />
+          <button type="submit" className="hidden" />
         </div>
-      </div>
+      </form>
 
+      {/* table */}
       <div className="overflow-x-auto w-full">
         <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
           <thead>
@@ -144,63 +140,125 @@ const Page = () => {
               <th className="py-2 px-4 text-left">Name</th>
               <th className="py-2 px-4 text-left">Description</th>
               <th className="py-2 px-4 text-left">Price</th>
-              <th className="py-2 px-4 text-left">Business ID</th>
+              <th className="py-2 px-4 text-left">
+                Business&nbsp;Auth&nbsp;ID
+              </th>
             </tr>
           </thead>
           <tbody>
-            {currentServices.map((service, index) => (
-              <tr key={service.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-gray-100'} hover:bg-gray-200 transition-colors cursor-pointer`} onClick={() => handleRowClick(service)}>
-                <td className="py-2 px-4 text-left" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={service.approved}
-                    onChange={(e) => handleApproveChange(service.id, e.target.checked)}
-                  />
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="text-center p-6">
+                  Loading…
                 </td>
-                <td className="py-2 px-4 text-left">
-                  <Image src={service.display_image_url} alt={service.name} width={50} height={50} className="rounded-md" />
-                </td>
-                <td className="py-2 px-4 text-left">{service.name}</td>
-                <td className="py-2 px-4 text-left">{service.description}</td>
-                <td className="py-2 px-4 text-left">${service.price_amount.toFixed(2)} / {formatPriceUnit(service.price_unit)}</td>
-                <td className="py-2 px-4 text-left">{service.business_id}</td>
               </tr>
-            ))}
+            ) : services.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center p-6">
+                  No services found
+                </td>
+              </tr>
+            ) : (
+              services.map((svc, i) => (
+                <tr
+                  key={svc.business_auth_id + svc.index}
+                  className={`${
+                    i % 2 ? "bg-gray-100" : "bg-gray-50"
+                  } hover:bg-gray-200 cursor-pointer`}
+                  onClick={() => setSelected(svc)}
+                >
+                  <td
+                    className="py-2 px-4"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleApprove(svc);
+                    }}
+                  >
+                    <input type="checkbox" checked={svc.approved} readOnly />
+                  </td>
+                  <td className="py-2 px-4">
+                    <Image
+                      src={svc.display_image_url || "/placeholder.png"}
+                      alt={svc.name}
+                      width={50}
+                      height={50}
+                      className="rounded-md object-cover"
+                    />
+                  </td>
+                  <td className="py-2 px-4">{svc.name}</td>
+                  <td className="py-2 px-4 truncate max-w-xs">
+                    {svc.description}
+                  </td>
+                  <td className="py-2 px-4">${svc.price.toFixed(2)}</td>
+                  <td className="py-2 px-4">{svc.business_auth_id}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      <div className="mt-4">
-        <nav>
-          <ul className="inline-flex -space-x-px">
-            {Array.from({ length: Math.ceil(filteredServices.length / servicesPerPage) }, (_, index) => (
-              <li key={index}>
-                <button
-                  onClick={() => paginate(index + 1)}
-                  className={`px-3 py-2 leading-tight ${currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-white text-blue-500'} border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
-                >
-                  {index + 1}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+      {/* pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4">
+          <nav>
+            <ul className="inline-flex -space-x-px">
+              {Array.from({ length: totalPages }, (_, idx) => (
+                <li key={idx}>
+                  <button
+                    onClick={() => setPage(idx + 1)}
+                    className={`px-3 py-2 leading-tight ${
+                      page === idx + 1
+                        ? "bg-blue-500 text-white"
+                        : "bg-white text-blue-500"
+                    } border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
+                  >
+                    {idx + 1}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      )}
 
-      {selectedService && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      {/* modal ---------------------------------------------------------------*/}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Service Details</h2>
-            <div className="mb-4">
-              <Image src={selectedService.display_image_url} alt={selectedService.name} width={100} height={100} className="rounded-md" />
-            </div>
-            <p><strong>ID:</strong> {selectedService.id}</p>
-            <p><strong>Business ID:</strong> {selectedService.business_id}</p>
-            <p><strong>Name:</strong> {selectedService.name}</p>
-            <p><strong>Description:</strong> {selectedService.description}</p>
-            <p><strong>Price:</strong> ${selectedService.price_amount.toFixed(2)} / {formatPriceUnit(selectedService.price_unit)}</p>
-            <p><strong>Approved:</strong> {selectedService.approved ? 'Yes' : 'No'}</p>
-            <button onClick={closeModal} className="mt-4 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors">
+            <h2 className="text-xl font-bold mb-4">Service details</h2>
+
+            <Image
+              src={selected.display_image_url || "/placeholder.png"}
+              alt={selected.name}
+              width={120}
+              height={120}
+              className="rounded-md mb-4 object-cover"
+            />
+
+            <p>
+              <b>ID:</b> {selected.index}
+            </p>
+            <p>
+              <b>Business Auth ID:</b> {selected.business_auth_id}
+            </p>
+            <p>
+              <b>Name:</b> {selected.name}
+            </p>
+            <p>
+              <b>Description:</b> {selected.description}
+            </p>
+            <p>
+              <b>Price:</b> ${selected.price.toFixed(2)}
+            </p>
+            <p>
+              <b>Approved:</b> {selected.approved ? "Yes" : "No"}
+            </p>
+
+            <button
+              onClick={() => setSelected(null)}
+              className="mt-6 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
               Close
             </button>
           </div>
@@ -208,6 +266,4 @@ const Page = () => {
       )}
     </div>
   );
-};
-
-export default Page;
+}
