@@ -82,6 +82,11 @@ const BusinessesPage = () => {
     try {
       const token = await getToken();
       await AdminService.updateBusiness(`${token}`, id, { [key]: value });
+      if (key === "is_deleted") {
+        setBusinesses((b) => b.filter((x) => x.auth_id !== id));
+        alert(`Business deleted successfully!`);
+        return;
+      }
       setBusinesses((b) =>
         b.map((x) => (x.auth_id === id ? { ...x, [key]: value } : x))
       );
