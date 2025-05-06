@@ -4,36 +4,42 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase";
-import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
+import { AdminService } from "@/src/data/services/AdminService";
+import { useAuth } from "@/src/context/AuthProvider";
 
 const SignInPage: React.FC = () => {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const router = useRouter();
-  const { user, role, loading } = useAuth(); // Get loading state here
+  const { setAdmin } = useAuth();
 
   const handleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    setLoading(true);
     e.preventDefault();
     setError("");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const user = await signInWithEmailAndPassword(auth, email, password);
+      if (user) {
+        const token = await user.user.getIdToken();
+        localStorage.setItem("AUTH_TOKEN", token);
+        const admin = await AdminService.getAuthenticatedAdmin(token);
+        if (admin) {
+          setAdmin(admin);
+          router.push("/admin");
+        }
+      } else {
+        setError("Invalid email or password");
+      }
     } catch (err: any) {
       setError(err.message);
       console.error(err.message);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Wait for loading to be false and role to be available
-  if (loading) {
-    return <div>Loading...</div>; // Show a loading spinner while waiting
-  }
-
-  if (user && role?.admin) {
-    router.push("/admin");
-    return null;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600">
@@ -84,7 +90,7 @@ const SignInPage: React.FC = () => {
             onClick={handleSignIn}
             className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors font-semibold"
           >
-            Sign In
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </div>
       </div>

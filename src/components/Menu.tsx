@@ -9,7 +9,7 @@ import { BiSolidCategory } from "react-icons/bi";
 import { MdPayments } from "react-icons/md";
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/firebase"; // Import your Firebase configuration
-import { useAuth } from "@/context/AuthContext"; // Import the useAuth hook
+import { useAuth } from "@/src/context/AuthProvider"; // Import the useAuth hook
 import { HiCash } from "react-icons/hi";
 
 interface MenuItem {
@@ -100,14 +100,15 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
 
 const Menu = () => {
   const router = useRouter();
-  const { role } = useAuth(); // Get the user's role from the AuthContext
+  const { admin } = useAuth(); // Get the authenticated admin from the AuthContext
+  // const { role } = useAuth(); // Get the user's role from the AuthContext
 
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
         <div className="flex flex-col gap-2" key={i.title}>
           {i.items.map((item) => {
-            if (item.visible.includes("admin") && !role?.admin) {
+            if (item.visible.includes("admin") && !admin) {
               return null; // Hide the item if the user is not an admin
             }
             if (item.onClick) {

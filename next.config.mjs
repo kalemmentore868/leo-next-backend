@@ -3,16 +3,21 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'randomuser.me',
+        protocol: "https",
+        hostname: "randomuser.me",
       },
       {
-        protocol: 'https',
-        hostname: 'loremflickr.com',
+        protocol: "https",
+        hostname: "loremflickr.com",
       },
       {
-        protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
+        protocol: "https",
+        hostname: "firebasestorage.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**", // any path
       },
     ],
   },

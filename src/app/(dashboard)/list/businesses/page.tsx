@@ -1,219 +1,227 @@
+// app/(admin)/businesses/page.tsx
 "use client";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { db } from "@/firebase";
 import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  DocumentData,
-  QuerySnapshot,
-  query,
-  where,
-  deleteDoc,
-} from "firebase/firestore";
+  AdminService,
+  GetAllBusinessesParams,
+} from "@/src/data/services/AdminService";
+import { Business } from "@/src/types/Business";
+import { getToken } from "@/src/data/services/util";
+// import { toast } from "react-hot-toast";
 
-interface Business {
-  id: string;
-  name: string;
-  contact_email: string;
-  category: string;
-  display_image_url: string;
-  approved: boolean;
-  is_featured: boolean;
-  has_paid: boolean;
-  auth_id: string;
+/* ---------- helpers ---------------------------------------------------- */
+
+const PAGE_SIZE = 10;
+
+function buildParams(
+  page: number,
+  search: string,
+  featured?: boolean,
+  subscribed?: boolean,
+  approved?: boolean
+): GetAllBusinessesParams {
+  return {
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+    is_featured: featured,
+    is_subscribed: subscribed,
+    approved,
+    sort_by: "recent",
+  };
 }
 
-const Page = () => {
+/* ---------- component -------------------------------------------------- */
+
+const BusinessesPage = () => {
   const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const businessesPerPage = 10;
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [featuredOnly, setFeatured] = useState<boolean>();
+  const [subscribedOnly, setPaid] = useState<boolean>();
+  const [approvedOnly, setApprovedOnly] = useState<boolean>();
+  const [loading, setLoading] = useState(false);
+
+  /* fetch ----------------------------------------------------------------*/
+  const fetchBusinesses = async () => {
+    setLoading(true);
+    const params = buildParams(
+      page,
+      search,
+      featuredOnly,
+      subscribedOnly,
+      approvedOnly
+    );
+    const token = await getToken();
+    const data = await AdminService.getAllBusinesses(`${token}`, params);
+    if (data) setBusinesses(data);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const businessesCollection = collection(db, "Businesses");
-        const businessesSnapshot: QuerySnapshot<DocumentData> = await getDocs(
-          businessesCollection
-        );
-        const businessesData = businessesSnapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name,
-            contact_email: data.contact_email,
-            category: data.category,
-            display_image_url: data.display_image_url,
-            approved: data.approved,
-            has_paid: data.has_paid,
-            auth_id: data.auth_id,
-          } as Business;
-        });
-        setBusinesses(businessesData);
-      } catch (error) {
-        console.error("Error fetching businesses: ", error);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const handleDelete = async (businessId: string) => {
-    setIsDeleting(true);
-    try {
-      // Step 1: Delete the business document
-      await deleteDoc(doc(db, "Businesses", businessId));
-
-      // Step 2: Define all collections that reference this business
-      const collectionsToDeleteByBusinessId = [
-        "Locations",
-        "Products",
-        "Services",
-        "Specials",
-        "VisibilitySettings",
-        "BusinessExtraDetails",
-        "Galleries",
-      ];
-
-      // Step 3: Loop through collections and delete documents where business_id matches
-      for (const colName of collectionsToDeleteByBusinessId) {
-        const q = query(
-          collection(db, colName),
-          where("business_id", "==", businessId)
-        );
-        const querySnapshot = await getDocs(q);
-
-        querySnapshot.forEach(async (doc) => {
-          await deleteDoc(doc.ref);
-        });
-      }
-
-      // Step 5: Update state to remove the deleted business from the UI
-      setBusinesses((prev) => prev.filter((b) => b.id !== businessId));
-
-      console.log("Business and related documents deleted successfully.");
-    } catch (error) {
-      console.error("Error deleting business: ", error);
-    } finally {
-      setIsDeleting(false);
-    }
+    fetchBusinesses();
+  }, [page, featuredOnly, subscribedOnly, approvedOnly]);
+  /* on‑demand search */
+  const onSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPage(1); // reset
+    fetchBusinesses();
   };
 
-  const handleApproveChange = async (businessId: string, approved: boolean) => {
+  /* update field ---------------------------------------------------------*/
+  const patchField = async (
+    id: string,
+    key: keyof Pick<
+      Business,
+      "approved" | "is_featured" | "is_subscribed" | "is_deleted"
+    >,
+    value: boolean
+  ) => {
+    // Assuming you have a PATCH route: businesses/:id (body {key,value})
     try {
-      const businessDoc = doc(db, "Businesses", businessId);
-      await updateDoc(businessDoc, { approved });
-      setBusinesses((prevBusinesses) =>
-        prevBusinesses.map((business) =>
-          business.id === businessId ? { ...business, approved } : business
-        )
+      const token = await getToken();
+      await AdminService.updateBusiness(`${token}`, id, { [key]: value });
+      setBusinesses((b) =>
+        b.map((x) => (x.auth_id === id ? { ...x, [key]: value } : x))
       );
-    } catch (error) {
-      console.error("Error updating business approval: ", error);
+      alert(`Business ${key} updated successfully!`);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const filteredBusinesses = businesses.filter(
-    (business) =>
-      business.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      business.contact_email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const indexOfLastBusiness = currentPage * businessesPerPage;
-  const indexOfFirstBusiness = indexOfLastBusiness - businessesPerPage;
-  const currentBusinesses = filteredBusinesses.slice(
-    indexOfFirstBusiness,
-    indexOfLastBusiness
-  );
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  /* --------------------------------------------------------------------- */
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen flex flex-col">
-      <h1 className="text-xl font-bold mb-4 text-gray-800 text-left">
-        Businesses
-      </h1>
+    <div className="p-6 bg-gray-50 min-h-screen flex flex-col gap-4">
+      <h1 className="text-xl font-bold text-gray-800">Businesses</h1>
 
-      <div className="mb-4 w-full max-w-md">
-        <div className="flex items-center gap-2 text-xs rounded-full ring-[1.5px] ring-gray-300 px-2">
+      {/* search + filter row */}
+      <form onSubmit={onSearch} className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 text-sm rounded-full ring-[1.5px] ring-gray-300 px-3 py-1">
           <Image src="/search.png" alt="" width={14} height={14} />
           <input
-            type="text"
-            placeholder="Search businesses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 bg-transparent outline-none"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name or email"
+            className="bg-transparent outline-none w-40"
           />
         </div>
-      </div>
 
-      <div className="overflow-x-auto w-full">
-        <table className="w-full bg-white shadow-lg rounded-lg overflow-hidden">
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="checkbox"
+            checked={featuredOnly ?? false}
+            onChange={(e) => {
+              setFeatured(e.target.checked || undefined);
+            }}
+          />
+          Featured
+        </label>
+
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="checkbox"
+            checked={approvedOnly ?? false}
+            onChange={(e) => {
+              setApprovedOnly(e.target.checked || undefined);
+            }}
+          />
+          Approved Only
+        </label>
+
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="checkbox"
+            checked={subscribedOnly ?? false}
+            onChange={(e) => {
+              setPaid(e.target.checked || undefined);
+            }}
+          />
+          Subscribed
+        </label>
+
+        <button
+          type="submit"
+          className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm"
+        >
+          {loading ? "…" : "Apply"}
+        </button>
+      </form>
+
+      {/* table ------------------------------------------------------------ */}
+      <div className="overflow-x-auto">
+        <table className="w-full bg-white shadow rounded-lg">
           <thead>
-            <tr className="bg-blue-500 text-white">
-              <th className="py-2 px-4 text-left">Approved</th>
-              <th className="py-2 px-4 text-left">Is Featured</th>
-              <th className="py-2 px-4 text-left">Profile</th>
-              <th className="py-2 px-4 text-left">Name</th>
-              <th className="py-2 px-4 text-left">Email</th>
-              <th className="py-2 px-4 text-left">Is Subscribed</th>
-              <th className="py-2 px-4 text-left">Delete</th>
+            <tr className="bg-blue-500 text-white text-left text-sm">
+              <th className="p-2">Approved</th>
+              <th className="p-2">Featured</th>
+              <th className="p-2">Subscribed</th>
+              <th className="p-2">Profile</th>
+              <th className="p-2">Name</th>
+              <th className="p-2">Email</th>
+              <th className="p-2">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {currentBusinesses.map((business, index) => (
+          <tbody className="text-sm">
+            {businesses.map((b, i) => (
               <tr
-                key={business.id}
-                className={`${
-                  index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"
-                } hover:bg-gray-200 transition-colors cursor-pointer`}
+                key={b.auth_id}
+                className={i % 2 ? "bg-gray-50" : "bg-gray-100"}
               >
-                <td
-                  className="py-2 px-4 text-left"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                {/* approved */}
+                <td className="p-2">
                   <input
                     type="checkbox"
-                    checked={business.approved}
+                    checked={b.approved}
                     onChange={(e) =>
-                      handleApproveChange(business.id, e.target.checked)
+                      patchField(b.auth_id, "approved", e.target.checked)
                     }
                   />
                 </td>
-                <td className="py-2 px-4 text-left">
-                  {business.is_featured ? "yes" : "no"}
+
+                {/* featured */}
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    checked={b.is_featured}
+                    onChange={(e) =>
+                      patchField(b.auth_id, "is_featured", e.target.checked)
+                    }
+                  />
                 </td>
-                <td className="py-2 px-4 text-left">
-                  <div className="w-12 h-12 relative">
+
+                {/* subscribed */}
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    checked={b.is_subscribed}
+                    onChange={(e) =>
+                      patchField(b.auth_id, "is_subscribed", e.target.checked)
+                    }
+                  />
+                </td>
+
+                <td className="p-2">
+                  <div className="w-10 h-10 relative">
                     <Image
-                      src={business.display_image_url || "/avatar.png"}
-                      alt={business.name}
-                      layout="fill"
-                      objectFit="cover"
-                      className="rounded-md"
+                      src={b.display_image_url || "/avatar.png"}
+                      alt={b.name}
+                      fill
+                      className="rounded-md object-cover"
                     />
                   </div>
                 </td>
-                <td className="py-2 px-4 text-left">
-                  {business.name || "Nil"}
-                </td>
-                <td className="py-2 px-4 text-left">
-                  {business.contact_email || "Nil"}
-                </td>
-                <td className="py-2 px-4 text-left">
-                  {business.has_paid ? "yes" : "no"}
-                </td>
-                <td className="py-2 px-4 text-left">
+                <td className="p-2">{b.name || "—"}</td>
+                <td className="p-2">{b.contact_email || "—"}</td>
+                <td className="p-2">
                   <button
-                    onClick={() => handleDelete(business.id)}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
+                    className="btn bg-red-500 text-white rounded-md px-2 py-1"
+                    onClick={() => patchField(b.auth_id, "is_deleted", true)}
                   >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </button>
+                    Delete
+                  </button>{" "}
                 </td>
               </tr>
             ))}
@@ -221,35 +229,26 @@ const Page = () => {
         </table>
       </div>
 
-      <div className="mt-4">
-        <nav>
-          <ul className="inline-flex -space-x-px">
-            {Array.from(
-              {
-                length: Math.ceil(
-                  filteredBusinesses.length / businessesPerPage
-                ),
-              },
-              (_, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => paginate(index + 1)}
-                    className={`px-3 py-2 leading-tight ${
-                      currentPage === index + 1
-                        ? "bg-blue-500 text-white"
-                        : "bg-white text-blue-500"
-                    } border border-gray-300 hover:bg-gray-100 hover:text-blue-700`}
-                  >
-                    {index + 1}
-                  </button>
-                </li>
-              )
-            )}
-          </ul>
-        </nav>
+      {/* simple pagination ------------------------------------------------ */}
+      <div className="flex gap-2 mt-4">
+        <button
+          disabled={page === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="px-3 py-1 border rounded disabled:opacity-40"
+        >
+          Prev
+        </button>
+        <span className="px-3 py-1">{page}</span>
+        <button
+          disabled={businesses.length < PAGE_SIZE}
+          onClick={() => setPage((p) => p + 1)}
+          className="px-3 py-1 border rounded disabled:opacity-40"
+        >
+          Next
+        </button>
       </div>
     </div>
   );
 };
 
-export default Page;
+export default BusinessesPage;
