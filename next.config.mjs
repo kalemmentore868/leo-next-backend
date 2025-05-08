@@ -19,6 +19,16 @@ const nextConfig = {
         hostname: "lh3.googleusercontent.com",
         pathname: "/**", // any path
       },
+      {
+        protocol: "https",
+        hostname: "graph.facebook.com",
+        pathname: "/**", // any path
+      },
+      {
+        protocol: "https",
+        hostname: "platform-lookaside.fbsbx.com",
+        pathname: "/**", // any path
+      },
     ],
   },
 };

@@ -1,6 +1,3 @@
-/* src/app/(dashboard)/list/services/page.tsx
-   Uses AdminService.getAllServices (+ optional approval toggle) */
-
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -10,7 +7,6 @@ import {
   AggregatedService,
   GetAllServicesParams,
 } from "@/src/data/services/AdminService";
-import { Product } from "@/src/types/Business";
 import { getIdToken } from "firebase/auth";
 import { auth } from "@/firebase";
 
@@ -23,10 +19,6 @@ async function getToken(): Promise<string> {
   if (!user) throw new Error("No Firebase user");
   return getIdToken(user, /*forceRefresh*/ true);
 }
-
-/* -------------------------------------------------------------------------- */
-/* component                                                                  */
-/* -------------------------------------------------------------------------- */
 
 export default function ServicesPage() {
   /* UI state ----------------------------------------------------------------*/

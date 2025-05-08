@@ -1,16 +1,31 @@
 import { User } from "@/src/types/User";
 import { Admin } from "../../types/Admin";
 import { customAuthFetch } from "./util";
-import { Business, Product } from "@/src/types/Business";
+import { Business, Product, Special } from "@/src/types/Business";
 
 export interface AggregatedService extends Omit<Product, "business_auth_id"> {
-  // we’ll inject our own below
-  /** Firebase/Auth id of the parent business */
   business_auth_id: string;
 
-  /** 0‑based position inside the original business.services array */
   index: number;
 }
+
+export interface AggregatedSpecial extends Omit<Special, "business_auth_id"> {
+  business_auth_id: string;
+  index: number;
+}
+
+export interface SpecialsResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: AggregatedSpecial[];
+}
+
+export type GetAllSpecialsParams = {
+  page?: number;
+  limit?: number;
+  search?: string; // by title
+};
 
 export interface AdminPageStats {
   totalUsers: number;
@@ -53,6 +68,31 @@ export type GetAllBusinessesParams = {
   sort_by?: "recent" | "views" | "name";
   search?: string;
 };
+
+export interface GetAllReviewsParams {
+  page?: number;
+  limit?: number;
+  search?: string; // free-text on comment
+}
+
+export interface ReviewsResponse {
+  total: number;
+  page: number;
+  limit: number;
+  data: AggregatedReview[];
+}
+
+export interface AggregatedReview {
+  _id: string; // Mongo id of review document
+  business_id: string;
+  user_id: string;
+  comment: string;
+  rating: number;
+  approved: boolean;
+  created_at: string;
+  business_name: string;
+  user_name: string;
+}
 
 export class AdminService {
   static async getAdminByAuthId(
@@ -185,6 +225,88 @@ export class AdminService {
       return data as Product;
     } catch (err: any) {
       console.error("Error updating service:", err.message);
+      return null;
+    }
+  }
+
+  static async getAllSpecials(
+    token: string,
+    params: GetAllSpecialsParams = {}
+  ): Promise<SpecialsResponse | null> {
+    const query = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(
+        ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      )
+      .join("&");
+
+    const endpoint = query ? `admins/specials?${query}` : `admins/specials`;
+
+    try {
+      const data = await customAuthFetch(endpoint, "GET", token);
+      return data as SpecialsResponse;
+    } catch (err: any) {
+      console.error("Error fetching specials:", err.message);
+      return null;
+    }
+  }
+
+  /** Toggle / set `approved` on a single special */
+  static async updateSpecial(
+    token: string,
+    index: number,
+    business_auth_id: string,
+    status: "active" | "expired" | "pending"
+  ): Promise<AggregatedSpecial | null> {
+    try {
+      const data = await customAuthFetch(
+        `admins/specials/${business_auth_id}/${index}`,
+        "PATCH",
+        token,
+        { status }
+      );
+      return data as AggregatedSpecial;
+    } catch (err: any) {
+      console.error("Error updating special:", err.message);
+      return null;
+    }
+  }
+
+  static async getAllReviews(
+    token: string,
+    params: GetAllReviewsParams = {}
+  ): Promise<ReviewsResponse | null> {
+    const query = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(
+        ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      )
+      .join("&");
+
+    const endpoint = query ? `admins/reviews?${query}` : "admins/reviews";
+
+    try {
+      return (await customAuthFetch(endpoint, "GET", token)) as ReviewsResponse;
+    } catch (err: any) {
+      console.error("Error fetching reviews:", err.message);
+      return null;
+    }
+  }
+
+  static async updateReview(
+    token: string,
+    reviewId: string,
+    approved: boolean
+  ): Promise<AggregatedReview | null> {
+    try {
+      return (await customAuthFetch(
+        `admins/reviews/${reviewId}`,
+        "PATCH",
+        token,
+        { approved }
+      )) as AggregatedReview;
+    } catch (err: any) {
+      console.error("Error updating review:", err.message);
       return null;
     }
   }
