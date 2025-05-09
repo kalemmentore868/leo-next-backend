@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FaHome, FaUsers, FaStar, FaSignOutAlt } from "react-icons/fa"; // Import icons
+import { CgProfile } from "react-icons/cg";
 import { IoBag } from "react-icons/io5";
 import { FaShop } from "react-icons/fa6";
 import { MdShoppingCart } from "react-icons/md";
@@ -40,6 +41,12 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         icon: <FaUsers />,
         label: "Users",
         href: "/list/users",
+        visible: ["admin"],
+      },
+      {
+        icon: <CgProfile />,
+        label: "Referral Profiles",
+        href: "/list/referral-profiles",
         visible: ["admin"],
       },
       {
