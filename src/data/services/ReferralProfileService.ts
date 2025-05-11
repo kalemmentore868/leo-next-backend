@@ -22,6 +22,7 @@ export class ReferralProfileService {
    * Create (enrol) a referral profile — *typically called by the WordPress form,
    * but you can also expose it in the app if needed*.
    */
+
   static async create(
     token: string,
     data: CreateReferralProfilePayload

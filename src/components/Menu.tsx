@@ -6,7 +6,9 @@ import { CgProfile } from "react-icons/cg";
 import { IoBag } from "react-icons/io5";
 import { FaShop } from "react-icons/fa6";
 import { MdShoppingCart } from "react-icons/md";
+import { MdOutlinePayment } from "react-icons/md";
 import { BiSolidCategory } from "react-icons/bi";
+import { FcInvite } from "react-icons/fc";
 import { MdPayments } from "react-icons/md";
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/firebase"; // Import your Firebase configuration
@@ -47,6 +49,18 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         icon: <CgProfile />,
         label: "Referral Profiles",
         href: "/list/referral-profiles",
+        visible: ["admin"],
+      },
+      {
+        icon: <FcInvite />,
+        label: "Referral Invites",
+        href: "/list/referral-invites",
+        visible: ["admin"],
+      },
+      {
+        icon: <MdOutlinePayment />,
+        label: "Payout",
+        href: "/list/payouts",
         visible: ["admin"],
       },
       {
