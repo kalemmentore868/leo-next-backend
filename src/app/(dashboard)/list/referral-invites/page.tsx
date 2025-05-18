@@ -42,8 +42,7 @@ export default function ReferralInvitesPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-200">
             <tr>
-              <th className="p-2 text-left">Invite Code</th>
-              <th className="p-2 text-left">Referrer Email</th>
+              <th className="p-2 text-left">Referrer Auth Id</th>
               <th className="p-2 text-left">Invitee Email</th>
               <th className="p-2 text-left">Invitee Auth ID</th>
               <th className="p-2 text-left">Status</th>
@@ -69,7 +68,6 @@ export default function ReferralInvitesPage() {
             ) : (
               invites.map((inv) => (
                 <tr key={inv._id} className="border-t">
-                  <td className="p-2">{inv.invite_code}</td>
                   <td className="p-2">{inv.referrer_id}</td>
                   <td className="p-2">{inv.invitee_email}</td>
                   <td className="p-2">{inv.invitee_auth_id || "—"}</td>

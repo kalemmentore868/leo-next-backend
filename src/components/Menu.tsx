@@ -14,6 +14,7 @@ import { getAuth, signOut } from "firebase/auth";
 import { app } from "@/firebase"; // Import your Firebase configuration
 import { useAuth } from "@/src/context/AuthProvider"; // Import the useAuth hook
 import { HiCash } from "react-icons/hi";
+import { IoBookmarkOutline } from "react-icons/io5";
 
 interface MenuItem {
   icon: JSX.Element;
@@ -67,6 +68,12 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         icon: <IoBag />,
         label: "Services",
         href: "/list/services",
+        visible: ["admin"],
+      },
+      {
+        icon: <IoBookmarkOutline />,
+        label: "Booking Services",
+        href: "/list/booking",
         visible: ["admin"],
       },
       {
