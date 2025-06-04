@@ -41,4 +41,52 @@ export class CategoryService {
       return [];
     }
   }
+
+  static async updateCategory(
+    token: string,
+    category_id: string,
+    payload: Partial<Omit<Category, "category_id">>
+  ) {
+    try {
+      return await customAuthFetch(
+        `categories/${category_id}`,
+        "PUT",
+        token,
+        payload
+      );
+    } catch (err: any) {
+      console.error("Error updating category: ", err.message);
+      throw err;
+    }
+  }
+
+  static async updateSubCategory(
+    token: string,
+    category_id: string,
+    payload: Partial<Omit<Subcategory, "category_id" | "subcategory_id">>
+  ) {
+    try {
+      return await customAuthFetch(
+        `subcategories/${category_id}`,
+        "PUT",
+        token,
+        payload
+      );
+    } catch (err: any) {
+      console.error("Error updating category: ", err.message);
+      throw err;
+    }
+  }
+
+  static async createSubCategory(
+    token: string,
+    payload: Omit<Subcategory, "subcategory_id" | "iconName">
+  ) {
+    try {
+      return await customAuthFetch("subcategories", "POST", token, payload);
+    } catch (err: any) {
+      console.error("Error creating subcategory: ", err.message);
+      throw err;
+    }
+  }
 }

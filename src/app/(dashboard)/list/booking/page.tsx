@@ -155,7 +155,7 @@ const BookingServicesPage = () => {
                 <td className="p-2">{svc.name}</td>
                 <td className="p-2">{svc.business_auth_id}</td>
                 <td className="p-2">
-                  {svc.currency} ${(svc.price / 100).toFixed(2)}
+                  {svc.currency} ${svc.price}
                 </td>
               </tr>
             ))}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FaHome, FaUsers, FaStar, FaSignOutAlt } from "react-icons/fa"; // Import icons
 import { CgProfile } from "react-icons/cg";
+import { RiCoupon2Fill } from "react-icons/ri";
 import { IoBag } from "react-icons/io5";
 import { FaShop } from "react-icons/fa6";
 import { MdShoppingCart } from "react-icons/md";
@@ -50,6 +51,12 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         icon: <CgProfile />,
         label: "Referral Profiles",
         href: "/list/referral-profiles",
+        visible: ["admin"],
+      },
+      {
+        icon: <RiCoupon2Fill />,
+        label: "Coupons",
+        href: "/list/coupons",
         visible: ["admin"],
       },
       {
