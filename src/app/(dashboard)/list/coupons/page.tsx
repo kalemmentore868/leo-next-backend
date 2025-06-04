@@ -15,14 +15,14 @@ import { db } from "@/firebase"; // adjust if needed
 import { format } from "date-fns";
 
 /* ------------------------------------------------------------------ enums */
-export enum CouponTypes {
+enum CouponTypes {
   SUBSCRIPTION = "subscription",
   SPECIALS = "specials",
   FEATURED = "featured",
   MESSAGE_BLAST = "message_blast",
 }
 
-export enum CouponDiscountType {
+enum CouponDiscountType {
   PERCENTAGE = "percentage",
   FLAT = "flat",
 }
