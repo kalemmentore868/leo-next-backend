@@ -1,7 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FaHome, FaUsers, FaStar, FaSignOutAlt } from "react-icons/fa"; // Import icons
+import {
+  FaHome,
+  FaUsers,
+  FaStar,
+  FaSignOutAlt,
+  FaUserAlt,
+} from "react-icons/fa"; // Import icons
 import { CgProfile } from "react-icons/cg";
 import { RiCoupon2Fill } from "react-icons/ri";
 import { IoBag } from "react-icons/io5";
@@ -39,6 +45,12 @@ const menuItems: { title: string; items: MenuItem[] }[] = [
         icon: <FaShop />,
         label: "Businesses",
         href: "/list/businesses",
+        visible: ["admin"],
+      },
+      {
+        icon: <FaUserAlt />,
+        label: "Auth",
+        href: "/list/auth",
         visible: ["admin"],
       },
       {

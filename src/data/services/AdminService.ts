@@ -75,6 +75,13 @@ export interface GetAllReviewsParams {
   search?: string; // free-text on comment
 }
 
+export interface AuthUserRow {
+  uid: string;
+  email?: string;
+  createdAt: string; // ISO string
+  lastLogin?: string; // ISO string | undefined
+}
+
 export interface ReviewsResponse {
   total: number;
   page: number;
@@ -307,6 +314,31 @@ export class AdminService {
       )) as AggregatedReview;
     } catch (err: any) {
       console.error("Error updating review:", err.message);
+      return null;
+    }
+  }
+
+  static async getAllAuthUsers(
+    token: string,
+    pageToken?: string,
+    limit = 50
+  ): Promise<{ users: AuthUserRow[]; nextPageToken?: string } | null> {
+    try {
+      const q = new URLSearchParams();
+      if (pageToken) q.set("pageToken", pageToken);
+      if (limit) q.set("limit", String(limit));
+
+      const endpoint =
+        q.toString().length > 0
+          ? `admins/auth-users?${q}`
+          : "admins/auth-users";
+
+      return (await customAuthFetch(endpoint, "GET", token)) as {
+        users: AuthUserRow[];
+        nextPageToken?: string;
+      };
+    } catch (err: any) {
+      console.error("Error fetching auth users:", err.message);
       return null;
     }
   }
